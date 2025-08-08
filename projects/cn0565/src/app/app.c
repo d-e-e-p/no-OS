@@ -307,12 +307,12 @@ void AD5940BiaStructInit(void)
 	pBiaCfg->ADCSinc3Osr = ADCSINC3OSR_2;
 
 	pBiaCfg->DacVoltPP = 300.0; //800.0
-	pBiaCfg->SinFreq = 10000.0; /* 10000Hz */
-	pBiaCfg->SweepCfg.SweepEn = false;
-	pBiaCfg->SweepCfg.SweepStart = 10000;
-	pBiaCfg->SweepCfg.SweepStop = 80000.0;
-	pBiaCfg->SweepCfg.SweepPoints = 20;
-	pBiaCfg->SweepCfg.SweepLog = true;
+	pBiaCfg->SinFreq = 1000.0; /* 1000Hz */
+	pBiaCfg->SweepCfg.SweepEn = true;
+	pBiaCfg->SweepCfg.SweepStart = 1000;
+	pBiaCfg->SweepCfg.SweepStop = 10000;
+	pBiaCfg->SweepCfg.SweepPoints = 10;
+	pBiaCfg->SweepCfg.SweepLog = false;
 	pBiaCfg->SweepCfg.SweepIndex = 0;
 }
 
