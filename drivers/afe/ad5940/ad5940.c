@@ -3229,8 +3229,10 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		((fImpCar_Type*)pResult)->Image = ((float)DftRtia.Image * DftRcal.Real -
 						   (float)DftRtia.Real * DftRcal.Image) / temp *
 						  pCalCfg->fRcal; /* Imaginary Part */
-		//printf("RTIA mag:%f,",sqrt(pResult[0]*pResult[0]+pResult[1]*pResult[1]));
-		//printf("phase:%f\n",atan2(pResult[1],pResult[0])/3.1415926*180);
+
+        printf("ad5940_HSRtiaCal RTIA %f + %f j\r\n",
+           ((fImpCar_Type*)pResult)->Real,
+           ((fImpCar_Type*)pResult)->Image);
 	} else {
 		float RcalMag, RtiaMag, RtiaPhase;
 		RcalMag = sqrt((float)DftRcal.Real * DftRcal.Real + (float)
@@ -3243,8 +3245,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 
 		((fImpPol_Type*)pResult)->Magnitude = RtiaMag;
 		((fImpPol_Type*)pResult)->Phase = RtiaPhase;
-		//printf("RTIA mag:%f,",RtiaMag);
-		//printf("phase:%f\n",RtiaPhase*180/MATH_PI);
+		printf("RTIA mag:%f,",RtiaMag);
+		printf("phase:%f\r\n",RtiaPhase*180/MATH_PI);
 	}
 	return 0;
 }
@@ -3641,6 +3643,9 @@ int ad5940_LPRtiaCal(struct ad5940_dev *dev, LPRTIACal_Type *pCalCfg,
 		res.Image *= pCalCfg->fRcal;
 		((fImpCar_Type*)pResult)->Real = res.Real;
 		((fImpCar_Type*)pResult)->Image = res.Image;
+        printf("ad5940_LPRtiaCal RTIA %f + %f j\r\n",
+           ((fImpCar_Type*)pResult)->Real,
+           ((fImpCar_Type*)pResult)->Image);
 	} else {
 		float RcalMag, RtiaMag, RtiaPhase;
 		RcalMag = sqrt((float)DftRcal.Real * DftRcal.Real + (float)
@@ -3653,8 +3658,8 @@ int ad5940_LPRtiaCal(struct ad5940_dev *dev, LPRTIACal_Type *pCalCfg,
 
 		((fImpPol_Type*)pResult)->Magnitude = RtiaMag;
 		((fImpPol_Type*)pResult)->Phase = RtiaPhase;
-		//printf("RTIA mag:%f,",RtiaMag);
-		//printf("phase:%f\n",RtiaPhase*180/MATH_PI);
+		printf("RTIA mag:%f,",RtiaMag);
+		printf("phase:%f\r\n",RtiaPhase*180/MATH_PI);
 	}
 	return 0;
 }

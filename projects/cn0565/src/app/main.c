@@ -125,7 +125,7 @@ int main(void)
 
 	no_os_uart_stdio(uart);
 
-	printf("Hello!\n");
+	printf("Hello!\r\n");
 #endif
 	struct no_os_i2c_init_param i2cip = {
 		.device_id = I2C_DEVICE_ID,
@@ -333,10 +333,10 @@ int main(void)
 	return iio_app_run(app);
 #endif
 
-	printf("Bye!\n");
+	printf("Bye!\r\n");
 	return 0;
 error:
-	printf("Bye! (%d)\n", ret);
+	printf("Bye! error=(%d)\r\n", ret);
 	return ret;
 }
 

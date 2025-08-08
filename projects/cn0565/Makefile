@@ -1,9 +1,10 @@
 # Uncomment to use the desired platform
 # PLATFORM = xilinx
 # PLATFORM = altera
-# PLATFORM = aducm3029
+PLATFORM = aducm3029
 # PLATFORM = stm32
-CFLAGS += -DENABLE_UART_STDIO
+IIOD=n
+
 
 include ../../tools/scripts/generic_variables.mk
 

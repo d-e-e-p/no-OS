@@ -81,7 +81,7 @@ PLATFORM_INCS += -I"$(CMSIS_CORE)/Include"
 PIN_MUX = $(PROJECT)/pinmux_config.c
 PROJECT_PIN_MUX = $(PROJECT_BUILD)/system/pinmux/GeneratedSources/pinmux_config.c
 
-PLATFORM_SRCS += $(PROJECT_PIN_MUX)
+PLATFORM_SRCS += $(PIN_MUX)
 PLATFORM_SRCS += $(PROJECT_BUILD)/system/adi_initialize.c
 PLATFORM_SRCS += $(PROJECT_BUILD)/RTE/Device/ADuCM3029/startup_ADuCM3029.c
 PLATFORM_SRCS += $(PROJECT_BUILD)/RTE/Device/ADuCM3029/system_ADuCM3029.c

@@ -33,6 +33,7 @@
 *******************************************************************************/
 #include <errno.h>
 #include "bia_measurement.h"
+#include "app.h"
 
 /* Initial AD5940 settings */
 AppBiaCfg_Type AppBiaCfg = {
@@ -52,7 +53,7 @@ AppBiaCfg_Type AppBiaCfg = {
 	.RcalVal = 10000.0, /* 10kOhm */
 
 	.PwrMod = AFEPWR_LP,
-	.HstiaRtiaSel = HSTIARTIA_10K,
+	.HstiaRtiaSel = HSTIARTIA_200,
 	.CtiaSel = 16,
 	.ExcitBufGain = EXCITBUFGAIN_2,
 	.HsDacGain = HSDACGAIN_1,
@@ -70,10 +71,10 @@ AppBiaCfg_Type AppBiaCfg = {
 	.HanWinEn = true,
 
 	.SweepCfg.SweepEn = false, //true false
-	.SweepCfg.SweepStart = 10000,
-	.SweepCfg.SweepStop = 80000.0,
-	.SweepCfg.SweepPoints = 20,
-	.SweepCfg.SweepLog = true,
+	.SweepCfg.SweepStart = 1000,
+	.SweepCfg.SweepStop = 10000,
+	.SweepCfg.SweepPoints = 10,
+	.SweepCfg.SweepLog = false,
 	.SweepCfg.SweepIndex = 0,
 
 	.FifoThresh = 2,
@@ -120,7 +121,7 @@ int AppBiaCtrl(struct ad5940_dev *dev, int32_t BcmCtrl, void *pPara)
 			return ret;
 
 		AppBiaCfg.FifoDataCount = 0; /* restart */
-		//printf("BIA Start...\n\r");
+		printf("BIA Start...\n\r");
 		break;
 	}
 	case BIACTRL_STOPNOW: {
@@ -134,11 +135,11 @@ int AppBiaCtrl(struct ad5940_dev *dev, int32_t BcmCtrl, void *pPara)
 		ret = ad5940_WUPTCtrl(dev, false); /* @todo is it sure this will stop Wupt? */
 		if (ret < 0)
 			return ret;
-		//printf("BIA Stop Now...\n\r");
+		printf("BIA Stop Now...\n\r");
 		break;
 	}
 	case BIACTRL_STOPSYNC: {
-		//printf("BIA Stop SYNC...\n\r");
+		printf("BIA Stop SYNC...\n\r");
 		AppBiaCfg.StopRequired = true;
 		break;
 	}
@@ -499,7 +500,7 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 	hsrtia_cal.HsTiaCfg.HstiaCtia = AppBiaCfg.CtiaSel;
 	hsrtia_cal.HsTiaCfg.HstiaDeRload = HSTIADERLOAD_OPEN;
 	hsrtia_cal.HsTiaCfg.HstiaDeRtia = HSTIADERTIA_TODE;
-	hsrtia_cal.HsTiaCfg.HstiaRtiaSel = HSTIARTIA_10K;
+	hsrtia_cal.HsTiaCfg.HstiaRtiaSel = HSTIARTIA_200;
 	hsrtia_cal.SysClkFreq = AppBiaCfg.SysClkFreq;
 
 	if (AppBiaCfg.SweepCfg.SweepEn == true) {

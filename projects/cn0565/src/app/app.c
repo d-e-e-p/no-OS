@@ -47,7 +47,7 @@
 
 extern struct no_os_uart_desc *uart;
 
-#define APPBUFF_SIZE 100
+#define APPBUFF_SIZE 1024
 uint32_t AppBuff[APPBUFF_SIZE];
 struct electrode_combo swComboSeq[256]; // TODO review when nElCount is 32
 
@@ -316,33 +316,32 @@ void AD5940BiaStructInit(void)
 	pBiaCfg->SweepCfg.SweepIndex = 0;
 }
 
+// switch comb for independent meas of each up-down connecter pair
 uint16_t generateSwitchCombination(struct eit_config eitCfg,
 				   struct electrode_combo *swSeq)
 {
 	uint16_t i = 0;
-	uint16_t j = 0;
+	//uint16_t j = 0;
 	uint8_t F_plus;
 	uint8_t F_minus;
 	uint8_t S_plus;
 	uint8_t S_minus;
 	uint16_t seqCtr = 0;
-	for (i = 0; i < eitCfg.nElectrodeCnt; i++) {
-		F_plus = i;
-		F_minus = (i + eitCfg.nForceDist) % eitCfg.nElectrodeCnt;
-		for (j = 0; j < eitCfg.nElectrodeCnt; j++) {
-			S_plus = j % eitCfg.nElectrodeCnt;
-			if (S_plus == F_plus || S_plus == F_minus)
-				continue;
-			S_minus = (S_plus + eitCfg.nSenseDist) % eitCfg.nElectrodeCnt;
-			if (S_minus == F_plus || S_minus == F_minus)
-				continue;
 
-			swSeq[seqCtr].F_plus = F_plus;
-			swSeq[seqCtr].F_minus = F_minus;
-			swSeq[seqCtr].S_plus = S_plus;
-			swSeq[seqCtr++].S_minus = S_minus;
-		}
-	}
+    for (i = 0; i < eitCfg.nElectrodeCnt; i += 2) {
+
+        F_plus = i;
+        F_minus = (i + eitCfg.nForceDist) % eitCfg.nElectrodeCnt;
+        S_plus = F_plus;
+        S_minus = F_minus;
+
+		swSeq[seqCtr].F_plus = F_plus;
+		swSeq[seqCtr].F_minus = F_minus;
+		swSeq[seqCtr].S_plus = S_plus;
+		swSeq[seqCtr++].S_minus = S_minus;
+        printf("seqCtr %d: S_plus=%d F_plus=%d S_minus=%d F_minus=%d\n",seqCtr, S_plus, F_plus, S_minus, F_minus);
+
+      }
 	return seqCtr;
 }
 
@@ -359,7 +358,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 	struct measurement_config newMeasCfg;
 
 	char *buffStr = 0;
-	uint32_t temp;
+	uint32_t temp = APPBUFF_SIZE;
 	uint16_t switchSeqCnt = 0;
 	uint16_t switchSeqNum = 0;
 
@@ -375,9 +374,9 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
 	oldMeasCfg.bImpedanceReadMode = true;
 	oldMeasCfg.bMagnitudeMode = false;
-	oldMeasCfg.nFrequency = 10;	// default 10 Khz Excitation
+	oldMeasCfg.nFrequency = 1;	// default 1 Khz Excitation
 	oldMeasCfg.nAmplitudePP = 300; // default 300mV peak to peak excitation
-	oldMeasCfg.bSweepEn = false;
+	oldMeasCfg.bSweepEn = true;
 
 	oldElCfg.F_plus = 0;
 	oldElCfg.F_minus = 3;
@@ -392,6 +391,37 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 	switchSeqNum = 0;
 	switchSeqCnt = generateSwitchCombination(oldEitCfg, swComboSeq);
 
+    // run initial meas even before going into interactive mode
+    // step1 : setup sequence
+	runningCmd = 'Q';
+	printf("%s", "!CMD Q OK\n");
+    newMeasCfg = oldMeasCfg;
+    configMeasurement(&oldMeasCfg, newMeasCfg);
+
+	AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
+	no_os_udelay(10);
+	printf("%s", "!Q ");
+	no_os_udelay(3);
+
+	runningCmd = 'V';
+	setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum++], newEitCfg.nElectrodeCnt);
+	AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
+	no_os_udelay(10);
+	AppBiaCtrl(ad5940, BIACTRL_START, 0);
+	printf("%s", "!V ");
+
+    for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
+		printf("running seq %d: \r\n", switchSeqNum);
+		setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum++], newEitCfg.nElectrodeCnt);
+	    no_os_udelay(3);
+	    AppBiaCtrl(ad5940, BIACTRL_START, 0);
+	    no_os_udelay(10);
+        SendResult(AppBuff, temp, newMeasCfg.bImpedanceReadMode, newMeasCfg.bMagnitudeMode);
+    }
+	printf("complete init seq \r\n");
+
+
+    // OK, now go into interactive mode
 	uint8_t cmd[32];
 	uint8_t cmdi = 0;
 
