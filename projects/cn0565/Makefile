@@ -5,6 +5,7 @@ PLATFORM = aducm3029
 # PLATFORM = stm32
 IIOD=n
 
+VERBOSE=y
 
 include ../../tools/scripts/generic_variables.mk
 
