@@ -70,7 +70,7 @@ AppBiaCfg_Type AppBiaCfg = {
 	.DftSrc = DFTSRC_SINC3,
 	.HanWinEn = true,
 
-	.SweepCfg.SweepEn = false, //true false
+	.SweepCfg.SweepEn = true, //true false
 	.SweepCfg.SweepStart = 1000,
 	.SweepCfg.SweepStop = 10000,
 	.SweepCfg.SweepPoints = 10,

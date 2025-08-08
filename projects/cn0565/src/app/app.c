@@ -399,16 +399,8 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     configMeasurement(&oldMeasCfg, newMeasCfg);
 
 	AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
+	printf("start init seq \r\n");
 	no_os_udelay(10);
-	printf("%s", "!Q ");
-	no_os_udelay(3);
-
-	runningCmd = 'V';
-	setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum++], newEitCfg.nElectrodeCnt);
-	AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
-	no_os_udelay(10);
-	AppBiaCtrl(ad5940, BIACTRL_START, 0);
-	printf("%s", "!V ");
 
     for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
 		printf("running seq %d: \r\n", switchSeqNum);
