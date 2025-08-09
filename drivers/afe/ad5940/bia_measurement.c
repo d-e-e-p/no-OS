@@ -121,7 +121,7 @@ int AppBiaCtrl(struct ad5940_dev *dev, int32_t BcmCtrl, void *pPara)
 			return ret;
 
 		AppBiaCfg.FifoDataCount = 0; /* restart */
-		printf("BIA Start...\n\r");
+		printf("BIA Started...\n\r");
 		break;
 	}
 	case BIACTRL_STOPNOW: {
@@ -501,8 +501,13 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 	hsrtia_cal.HsTiaCfg.HstiaCtia = AppBiaCfg.CtiaSel;
 	hsrtia_cal.HsTiaCfg.HstiaDeRload = HSTIADERLOAD_OPEN;
 	hsrtia_cal.HsTiaCfg.HstiaDeRtia = HSTIADERTIA_TODE;
-	hsrtia_cal.HsTiaCfg.HstiaRtiaSel = HSTIARTIA_200;
+	hsrtia_cal.HsTiaCfg.HstiaRtiaSel = AppBiaCfg.HstiaRtiaSel;
 	hsrtia_cal.SysClkFreq = AppBiaCfg.SysClkFreq;
+
+    static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
+    uint32_t RtiaVal = HpRtiaTable[hsrtia_cal.HsTiaCfg.HstiaRtiaSel];
+	printf("AppBiaRtiaCal using RtiaVal = %lu\r\n",  RtiaVal);
+
 
 	if (AppBiaCfg.SweepCfg.SweepEn == true) {
 		uint32_t i;
@@ -511,24 +516,22 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 			ad5940_SweepNext(dev, &AppBiaCfg.SweepCfg, &hsrtia_cal.fFreq);
 			ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, AppBiaCfg.RtiaCalTable[i]);
 			if (ret < 0) {
-				printf("problem with sweep: %d\r\n", ret);
+				printf("problem with sweep:%lu ret:%d\r\n", i, ret);
 				return ret;
 			}
 			printf("Sweep:%d Freq:%.2f, Mag:%.2f, Phase:%f Degree\r\n", (int) i, hsrtia_cal.fFreq,
 			       AppBiaCfg.RtiaCalTable[i][0], AppBiaCfg.RtiaCalTable[i][1] * 180 / MATH_PI);
 		}
-		AppBiaCfg.RtiaCurrValue[AppBiaCfg.SweepCfg.SweepIndex] =
-			AppBiaCfg.RtiaCalTable[i][0];
-		AppBiaCfg.RtiaCurrValue[AppBiaCfg.SweepCfg.SweepIndex] =
-			AppBiaCfg.RtiaCalTable[i][0];
+
+		AppBiaCfg.RtiaCurrValue[0] = AppBiaCfg.RtiaCalTable[i][0];
+		AppBiaCfg.RtiaCurrValue[1] = AppBiaCfg.RtiaCalTable[i][1];
 		AppBiaCfg.SweepCfg.SweepIndex = 0; /* Reset index */
 	} else {
 		hsrtia_cal.fFreq = AppBiaCfg.SinFreq;
 		ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, AppBiaCfg.RtiaCurrValue);
 		if (ret < 0)
 			return ret;
-		printf("RtiaReal:%.2f,Imag:%f\n", AppBiaCfg.RtiaCurrValue[0],
-		       AppBiaCfg.RtiaCurrValue[1]);
+
 	}
 	return 0;
 }
@@ -559,6 +562,7 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		return ret;
 
 	/* Do RTIA calibration */
+	printf("AppBiaInit: Do RTIA calibration  \r\n");
 
 	if ((AppBiaCfg.bParamsChanged == true) || (AppBiaCfg.ReDoRtiaCal == true) ||
 	    AppBiaCfg.BiaInited == false) { /* Do calibration on the first initializaion */
@@ -571,6 +575,7 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		AppBiaCfg.ReDoRtiaCal = false;
 	}
 	/* Reconfigure FIFO */
+	printf("AppBiaInit: Reconfigure FIFO \r\n");
 	ret = ad5940_FIFOCtrlS(dev, FIFOSRC_DFT, false); /* Disable FIFO firstly */
 	if (ret < 0)
 		return ret;
@@ -590,6 +595,7 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		return ret;
 
 	/* Start sequence generator */
+	printf("AppBiaInit: start sequence generator \r\n");
 	/* Initialize sequencer generator */
 	if ((AppBiaCfg.BiaInited == false) ||
 	    (AppBiaCfg.bParamsChanged == true)) {
@@ -614,6 +620,7 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 	}
 
 	/* Initialization sequencer  */
+	printf("AppBiaInit: Initialization sequencer \r\n");
 	AppBiaCfg.InitSeqInfo.WriteSRAM = false;
 	ret = ad5940_SEQInfoCfg(dev, &AppBiaCfg.InitSeqInfo);
 	if (ret < 0)
@@ -629,6 +636,7 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		;
 
 	/* Measurment sequence  */
+	printf("AppBiaInit: Measurment sequence \r\n");
 	AppBiaCfg.MeasureSeqInfo.WriteSRAM = false;
 	ad5940_SEQInfoCfg(dev, &AppBiaCfg.MeasureSeqInfo);
 
@@ -656,6 +664,7 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 static int AppEITRegModify(struct ad5940_dev *dev, int32_t * const pData,
 			   uint32_t *pDataCount)
 {
+    // printf("AppEITRegModify: pDataCount:%lu\r\n", *pDataCount);
 	if (AppBiaCfg.NumOfData > 0) {
 		AppBiaCfg.FifoDataCount += *pDataCount / 4;
 		if ((int32_t)AppBiaCfg.FifoDataCount >= AppBiaCfg.NumOfData) {
@@ -691,6 +700,7 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
 	fImpCar_Type fCarZval;
 	float a, b;
 	float c, d;
+	float e, f;
 	float denum = 1;
 
 	pDftVolt = pSrcData++;
@@ -698,7 +708,8 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
 
 	// Compute Impedance from Voltage and Current
 	//fCarZval = AD5940_ComplexDivInt(pDftVolt, pDftCurr);
-	//printf("V:%d,%d,I:%d,%d ",pDftVolt->Real,pDftVolt->Image, pDftCurr->Real, pDftCurr->Image);
+	// printf("computeImpedance V:%ld,%ld, I:%ld,%ld \r\n",pDftVolt->Real,pDftVolt->Image, pDftCurr->Real, pDftCurr->Image);
+
 	//(a+bi)/(c+di) = (a+bi)(c-di)/((c+di)(c-di)) = (a*c+b*d+(-a*d+b*c)i)/(c^2+d^2)
 	a = (float)pDftVolt->Real;
 	b = -(float)pDftVolt->Image;
@@ -713,12 +724,15 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
 	fCarZval.Image = (-a * d + b * c) / denum;
 
 	//Apply Rtia cal values;
-	a = fCarZval.Real * AppBiaCfg.RtiaCurrValue[0] - fCarZval.Image *
-	    AppBiaCfg.RtiaCurrValue[1];
-	b = fCarZval.Image * AppBiaCfg.RtiaCurrValue[0] + fCarZval.Real *
-	    AppBiaCfg.RtiaCurrValue[1];
-	fCarZval.Real = a;
-	fCarZval.Image = b;
+	e = fCarZval.Real * AppBiaCfg.RtiaCurrValue[0] - fCarZval.Image * AppBiaCfg.RtiaCurrValue[1];
+	f = fCarZval.Image * AppBiaCfg.RtiaCurrValue[0] + fCarZval.Real * AppBiaCfg.RtiaCurrValue[1];
+	fCarZval.Real = e;
+	fCarZval.Image = f;
+	printf("computeImpedance VRe:%.2f VIm:%.2f IRe:%.2f IIm:%.2f RRtia:%.2f IRtia:%.2f -> Result R:%.2f I:%.2f\r\n",
+       	a, b, c, d,
+       	AppBiaCfg.RtiaCurrValue[0], AppBiaCfg.RtiaCurrValue[1],
+       	e, f);
+
 	return fCarZval;
 }
 

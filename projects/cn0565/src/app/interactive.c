@@ -241,7 +241,7 @@ void interactive_mode(struct no_os_i2c_desc *i2c,
 						AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
 						no_os_udelay(10);
 						printf("%s", "!Q ");
-						setMuxSwitch(i2c, ad5940, newElCfg, MUXBOARD_SIZE);
+						setMuxSwitch(i2c, ad5940, newElCfg);
 						no_os_udelay(3);
 						AppBiaCtrl(ad5940, BIACTRL_START, 0);
 						lastConfig = 'Q';
@@ -283,7 +283,7 @@ void interactive_mode(struct no_os_i2c_desc *i2c,
 						printf("%s", "!CMD V OK\n");
 						runningCmd = 'V';
 						switchSeqNum = 0;
-						setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum++], newEitCfg.nElectrodeCnt);
+						setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum++]);
 						AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
 						no_os_udelay(10);
 						AppBiaCtrl(ad5940, BIACTRL_START, 0);
@@ -326,7 +326,7 @@ void interactive_mode(struct no_os_i2c_desc *i2c,
 					SendResult(AppBuff, temp, newMeasCfg.bImpedanceReadMode,
 						   newMeasCfg.bMagnitudeMode);
 					putchar(',');
-					setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum++], newEitCfg.nElectrodeCnt);
+					setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum++]);
 					no_os_udelay(3);
 					AppBiaCtrl(ad5940, BIACTRL_START, 0);
 				}

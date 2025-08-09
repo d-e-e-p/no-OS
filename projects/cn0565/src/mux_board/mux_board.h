@@ -36,7 +36,7 @@
 #include <stdint.h>
 #include "no_os_i2c.h"
 #include "ad5940.h"
-#define ADG2128_MUX_SIZE 16
+#define ADG2128_MUX_SIZE 24
 #define MUXBOARD_SIZE ADG2128_MUX_SIZE
 enum muxbrd_variant {
 	ADG2128MUXBOARD,
@@ -55,6 +55,6 @@ struct electrode_combo {
 };
 
 void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *dev,
-		  struct electrode_combo sw, uint16_t nElCount);
+		  struct electrode_combo sw);
 
 #endif /* MUXBOARD_H_ */

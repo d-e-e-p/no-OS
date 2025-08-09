@@ -3050,6 +3050,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		WgAmpWord = ((uint32_t)(ExcitVolt / 1600 * 2047 * 2) + 1)
 			    >> 1; /* Assign value with rounding (0.5 LSB error) */
 	}
+    printf("ad5940_HSRtiaCal: using RtiaVal=%lu ExcitVolt=%f\r\n", RtiaVal, ExcitVolt);
+
 
 	if (WgAmpWord > 0x7ff)
 		WgAmpWord = 0x7ff;
@@ -3229,10 +3231,6 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		((fImpCar_Type*)pResult)->Image = ((float)DftRtia.Image * DftRcal.Real -
 						   (float)DftRtia.Real * DftRcal.Image) / temp *
 						  pCalCfg->fRcal; /* Imaginary Part */
-
-        printf("ad5940_HSRtiaCal RTIA %f + %f j\r\n",
-           ((fImpCar_Type*)pResult)->Real,
-           ((fImpCar_Type*)pResult)->Image);
 	} else {
 		float RcalMag, RtiaMag, RtiaPhase;
 		RcalMag = sqrt((float)DftRcal.Real * DftRcal.Real + (float)
