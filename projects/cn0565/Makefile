@@ -3,9 +3,8 @@
 # PLATFORM = altera
 PLATFORM = aducm3029
 # PLATFORM = stm32
-IIOD=n
-
-VERBOSE=y
+CFLAGS += -DENABLE_UART_STDIO
+VERBOSE=n
 
 include ../../tools/scripts/generic_variables.mk
 

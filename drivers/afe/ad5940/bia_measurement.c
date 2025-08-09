@@ -70,11 +70,11 @@ AppBiaCfg_Type AppBiaCfg = {
 	.DftSrc = DFTSRC_SINC3,
 	.HanWinEn = true,
 
-	.SweepCfg.SweepEn = true, //true false
-	.SweepCfg.SweepStart = 1000,
-	.SweepCfg.SweepStop = 10000,
-	.SweepCfg.SweepPoints = 10,
-	.SweepCfg.SweepLog = false,
+	.SweepCfg.SweepEn = false, //true false
+	.SweepCfg.SweepStart = 10000,
+	.SweepCfg.SweepStop = 80000.0,
+	.SweepCfg.SweepPoints = 20,
+	.SweepCfg.SweepLog = true,
 	.SweepCfg.SweepIndex = 0,
 
 	.FifoThresh = 2,
@@ -478,6 +478,7 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
 	AppBiaCfg.MeasureSeqInfo.pSeqCmd = pSeqCmd;
 	AppBiaCfg.MeasureSeqInfo.SeqLen = SeqLen;
 	/* Write command to SRAM */
+	printf("AppBiaSeqMeasureGen: pSeqCmd=%lu SeqLen=%lu\r\n", *pSeqCmd, SeqLen);
 	return ad5940_SEQCmdWrite(dev, AppBiaCfg.MeasureSeqInfo.SeqRamAddr, pSeqCmd,
 				  SeqLen);
 }
@@ -509,9 +510,11 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 		for (i = 0; i < AppBiaCfg.SweepCfg.SweepPoints; i++) {
 			ad5940_SweepNext(dev, &AppBiaCfg.SweepCfg, &hsrtia_cal.fFreq);
 			ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, AppBiaCfg.RtiaCalTable[i]);
-			if (ret < 0)
+			if (ret < 0) {
+				printf("problem with sweep: %d\r\n", ret);
 				return ret;
-			printf("Freq:%.2f,Mag:%.2f,Phase:%fDegree\n", hsrtia_cal.fFreq,
+			}
+			printf("Sweep:%d Freq:%.2f, Mag:%.2f, Phase:%f Degree\r\n", (int) i, hsrtia_cal.fFreq,
 			       AppBiaCfg.RtiaCalTable[i][0], AppBiaCfg.RtiaCalTable[i][1] * 180 / MATH_PI);
 		}
 		AppBiaCfg.RtiaCurrValue[AppBiaCfg.SweepCfg.SweepIndex] =

@@ -182,7 +182,7 @@ uint16_t generateSwitchCombination(struct eit_config eitCfg,
 		swSeq[seqCtr].F_minus = F_minus;
 		swSeq[seqCtr].S_plus = S_plus;
 		swSeq[seqCtr++].S_minus = S_minus;
-        printf("seqCtr %d: S_plus=%d F_plus=%d S_minus=%d F_minus=%d\n",seqCtr, S_plus, F_plus, S_minus, F_minus);
+        printf("seqCtr %d: S_plus=%d F_plus=%d S_minus=%d F_minus=%d \r\n",seqCtr, S_plus, F_plus, S_minus, F_minus);
 
       }
 	return seqCtr;
@@ -261,7 +261,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     // run initial meas even before going into interactive mode
     // step1 : setup sequence
 	runningCmd = 'Q';
-	printf("%s", "!CMD Q OK\n");
+	printf("%s", "!CMD Q OK\r\n");
     newMeasCfg = oldMeasCfg;
     configMeasurement(&oldMeasCfg, newMeasCfg);
 
@@ -271,7 +271,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
     for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
 		printf("running seq %d: \r\n", switchSeqNum);
-		setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum++], oldEitCfg.nElectrodeCnt);
+		setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum], oldEitCfg.nElectrodeCnt);
 	    no_os_udelay(3);
 	    AppBiaCtrl(ad5940, BIACTRL_START, 0);
 	    no_os_udelay(10);
