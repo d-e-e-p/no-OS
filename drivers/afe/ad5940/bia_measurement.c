@@ -694,6 +694,41 @@ void signExtend18To32(uint32_t *const pData, uint16_t nLen)
 
 fImpCar_Type computeImpedance(uint32_t *const pData)
 {
+    // Step0: Interpret pData as two complex values: Voltage and Current
+    iImpCar_Type *pSrcData = (iImpCar_Type *)pData;
+    iImpCar_Type Vdft = *pSrcData;
+    iImpCar_Type Idft = *(pSrcData + 1);
+
+    // Step1: fetch Zrtia from correlation run
+    fImpCar_Type Zrtia = { 
+        .Real  = AppBiaCfg.RtiaCurrValue[0], 
+        .Image = AppBiaCfg.RtiaCurrValue[1] 
+    };
+
+    // Step 2: Compute Zdft = Vdft / Idft
+    fImpCar_Type Zdft = ad5940_ComplexDivInt(&Vdft, &Idft);
+
+    printf(
+        "  DEBUG Zdft (%.0f + %.0f j) = Vdft (%d + %d j) / Idft (%d + %d j)\r\n",
+        Zdft.Real, Zdft.Image,
+        Vdft.Real, Vdft.Image,
+        Idft.Real, Idft.Image
+    );
+
+    // Step 3: Apply RTIA calibration: Zcal = Zdft * Zrtia
+    fImpCar_Type Zcal = ad5940_ComplexMulFloat(&Zdft, &Zrtia);
+    printf(
+        "  DEBUG Zcal (%.0f + %.0f j) = Zdft (%.0f + %.0f j) * Zrtia (%.0f + %.0f j)\r\n",
+        Zcal.Real,  Zcal.Image,
+        Zdft.Real,  Zdft.Image,
+        Zrtia.Real, Zrtia.Image
+    );
+
+    return Zcal;
+}
+
+fImpCar_Type OldcomputeImpedance(uint32_t *const pData)
+{
 	// 4 data. VRe, VIm, IRe, IIm
 	iImpCar_Type *pSrcData = (iImpCar_Type *)pData;
 	iImpCar_Type *pDftVolt, *pDftCurr;
