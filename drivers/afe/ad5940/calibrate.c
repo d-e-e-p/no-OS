@@ -6,7 +6,48 @@
  * for accurate impedance measurements.
  */
 
+#include "ad5940.h"
 #include "calibrate.h"
+
+/**
+ * @brief Helper function to perform a DFT measurement and read the raw result.
+ * @param dev: AD5940 device structure.
+ * @param pDftResult: Pointer to store the DFT result (real and imaginary parts).
+ * @return 0 on success, negative error code on failure.
+ */
+static int AD5940_MeasureRcalDft(struct ad5940_dev *dev, iImpCar_Type *pDftResult)
+{
+    int ret;
+
+    /* Start excitation and measurement */
+    ret = ad5940_AFECtrlS(dev, AFECTRL_WG | AFECTRL_ADCPWR, true);
+    if (ret < 0) return ret;
+    
+    ret = ad5940_AFECtrlS(dev, AFECTRL_ADCCNV | AFECTRL_DFT, true);
+    if (ret < 0) return ret;
+    
+    /* Wait for DFT completion */
+    while (ad5940_INTCTestFlag(dev, AFEINTC_1, AFEINTSRC_DFTRDY) == false);
+    
+    /* Stop measurement */
+    ret = ad5940_AFECtrlS(dev, 
+                  AFECTRL_ADCCNV | AFECTRL_DFT | AFECTRL_WG | AFECTRL_ADCPWR, 
+                  false);
+    if (ret < 0) return ret;
+    
+    /* Clear interrupt flag */
+    ret = ad5940_INTCClrFlag(dev, AFEINTSRC_DFTRDY);
+    if (ret < 0) return ret;
+    
+    /* Read DFT results */
+    ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, (uint32_t *)&pDftResult->Real);
+    if (ret < 0) return ret;
+    
+    ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&pDftResult->Image);
+    if (ret < 0) return ret;
+
+    return 0;
+}
 
 /**
  * @brief Perform RCAL calibration accounting for RTIA
@@ -22,7 +63,7 @@ int AD5940_RcalCalibration(struct ad5940_dev *dev,
     int ret;
     DSPCfg_Type dsp_cfg;
     DFTCfg_Type dft_cfg;
-    fImpPol_Type DftRcal;
+    iImpCar_Type DftRcal;
     uint32_t DACCode = 0x800;  // Start with mid-scale DAC code
     uint32_t iteration = 0;
     const uint32_t MAX_ITERATIONS = 20;
@@ -101,31 +142,8 @@ int AD5940_RcalCalibration(struct ad5940_dev *dev,
                       true);
         if (ret < 0) return ret;
         
-        /* Start excitation and measurement */
-        ret = ad5940_AFECtrlS(dev, AFECTRL_WG | AFECTRL_ADCPWR, true);
-        if (ret < 0) return ret;
-        
-        ret = ad5940_AFECtrlS(dev, AFECTRL_ADCCNV | AFECTRL_DFT, true);
-        if (ret < 0) return ret;
-        
-        /* Wait for DFT completion */
-        while (ad5940_INTCTestFlag(dev, AFEINTC_1, AFEINTSRC_DFTRDY) == false);
-        
-        /* Stop measurement */
-        ret = ad5940_AFECtrlS(dev, 
-                      AFECTRL_ADCCNV | AFECTRL_DFT | AFECTRL_WG | AFECTRL_ADCPWR, 
-                      false);
-        if (ret < 0) return ret;
-        
-        /* Clear interrupt flag */
-        ret = ad5940_INTCClrFlag(dev, AFEINTSRC_DFTRDY);
-        if (ret < 0) return ret;
-        
-        /* Read DFT results */
-        ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, (uint32_t *)&DftRcal.Real);
-        if (ret < 0) return ret;
-        
-        ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&DftRcal.Image);
+        /* Perform measurement */
+        ret = AD5940_MeasureRcalDft(dev, &DftRcal);
         if (ret < 0) return ret;
         
         printf("  Raw DFT: Real=%d, Image=%d\r\n", DftRcal.Real, DftRcal.Image);
@@ -226,47 +244,4 @@ int AD5940_RcalCalibration(struct ad5940_dev *dev,
     printf("\r\n");
     
     return ret;
-}
-
-/**
- * @brief Helper function to measure voltage across RCAL
- * Used during calibration process
- */
-int AD5940_MeasureRcalVoltage(struct ad5940_dev *dev, 
-                             CalCfg_Type *pCalCfg, 
-                             float *pVoltage)
-{
-    int ret;
-    fImpPol_Type DftResult;
-    
-    /* Perform single DFT measurement as shown in your original code */
-    ret = ad5940_AFECtrlS(dev, AFECTRL_WG | AFECTRL_ADCPWR, true);
-    if (ret < 0) return ret;
-    
-    ret = ad5940_AFECtrlS(dev, AFECTRL_ADCCNV | AFECTRL_DFT, true);
-    if (ret < 0) return ret;
-    
-    while (ad5940_INTCTestFlag(dev, AFEINTC_1, AFEINTSRC_DFTRDY) == false);
-    
-    ret = ad5940_AFECtrlS(dev, 
-                  AFECTRL_ADCCNV | AFECTRL_DFT | AFECTRL_WG | AFECTRL_ADCPWR, 
-                  false);
-    if (ret < 0) return ret;
-    
-    ret = ad5940_INTCClrFlag(dev, AFEINTSRC_DFTRDY);
-    if (ret < 0) return ret;
-    
-    ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, (uint32_t *)&DftResult.Real);
-    if (ret < 0) return ret;
-    
-    ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&DftResult.Image);
-    if (ret < 0) return ret;
-    
-    /* Convert DFT result to voltage */
-    float RealVolt = DftResult.Real * pCalCfg->AdcPgaGain * pCalCfg->ADCRefVolt / 32768.0f;
-    float ImagVolt = DftResult.Image * pCalCfg->AdcPgaGain * pCalCfg->ADCRefVolt / 32768.0f;
-    
-    *pVoltage = sqrtf(RealVolt * RealVolt + ImagVolt * ImagVolt);
-    
-    return 0;
 }
