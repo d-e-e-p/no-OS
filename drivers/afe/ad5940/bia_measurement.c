@@ -33,6 +33,7 @@
 *******************************************************************************/
 #include <errno.h>
 #include "bia_measurement.h"
+#include "calibrate.h"
 #include "app.h"
 
 /* Initial AD5940 settings */
@@ -696,8 +697,12 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
 {
     // Step0: Interpret pData as two complex values: Voltage and Current
     iImpCar_Type *pSrcData = (iImpCar_Type *)pData;
-    iImpCar_Type Vdft = *pSrcData;
-    iImpCar_Type Idft = *(pSrcData + 1);
+    iImpCar_Type Vdut = *pSrcData;
+    iImpCar_Type Idut = *(pSrcData + 1);
+    // AD594x’s DFT hardware outputs the imaginary part with an opposite sign 
+    // Rtia inverting stage flips both the real and imaginary parts of the current’s phasor.
+    Vdut.Image = -Vdut.Image;
+    Idut.Real = -Idut.Real;
 
     // Step1: fetch Zrtia from correlation run
     fImpCar_Type Zrtia = { 
@@ -705,22 +710,22 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
         .Image = AppBiaCfg.RtiaCurrValue[1] 
     };
 
-    // Step 2: Compute Zdft = Vdft / Idft
-    fImpCar_Type Zdft = ad5940_ComplexDivInt(&Vdft, &Idft);
+    // Step 2: Compute Zdut = Vdut / Idut
+    fImpCar_Type Zdut = ad5940_ComplexDivInt(&Vdut, &Idut);
 
     printf(
-        "  DEBUG Zdft (%.0f + %.0f j) = Vdft (%d + %d j) / Idft (%d + %d j)\r\n",
-        Zdft.Real, Zdft.Image,
-        Vdft.Real, Vdft.Image,
-        Idft.Real, Idft.Image
+        "  DEBUG Zdut (%.0f + %.0f j) = Vdut (%d + %d j) / Idut (%d + %d j)\r\n",
+        Zdut.Real, Zdut.Image,
+        Vdut.Real, Vdut.Image,
+        Idut.Real, Idut.Image
     );
 
-    // Step 3: Apply RTIA calibration: Zcal = Zdft * Zrtia
-    fImpCar_Type Zcal = ad5940_ComplexMulFloat(&Zdft, &Zrtia);
+    // Step 3: Apply RTIA calibration: Zcal = Zdut * Zrtia
+    fImpCar_Type Zcal = ad5940_ComplexMulFloat(&Zdut, &Zrtia);
     printf(
-        "  DEBUG Zcal (%.0f + %.0f j) = Zdft (%.0f + %.0f j) * Zrtia (%.0f + %.0f j)\r\n",
+        "  DEBUG Zcal (%.0f + %.0f j) = Zdut (%.0f + %.0f j) * Zrtia (%.0f + %.0f j)\r\n",
         Zcal.Real,  Zcal.Image,
-        Zdft.Real,  Zdft.Image,
+        Zdut.Real,  Zdut.Image,
         Zrtia.Real, Zrtia.Image
     );
 
