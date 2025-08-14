@@ -274,7 +274,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     printf("expected_samples %lu = SweepPoints %lu * FifoThresh %lu \r\n", 
         seq_expected_samples, pBiaCfg->SweepCfg.SweepPoints, pBiaCfg->FifoThresh);
 
-    AD5940_RcalCalibration(ad5940, pBiaCfg);
+    printf(" GEMINI TODO: create function to call here:  ad5940_RcalCalibration(ad5940, pBiaCfg);\r\n");
 
      for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
          printf("running seq %d: \r\n", switchSeqNum);

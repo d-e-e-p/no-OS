@@ -329,9 +329,11 @@ echo $(1) >> $(OBJS_FILE).tmp
 endef
 
 define overwrite_file_if_different
-	if ! diff $(1) $(2) &> /dev/null ; then \
-		mv -f $(1) $(2) ; \
-	fi
+    if [ -f $(1) ] && diff $(1) $(2) >/dev/null 2>&1; then \
+        :; \
+    else \
+        mv -f $(1) $(2); \
+    fi
 endef
 
 define generate_flags_file

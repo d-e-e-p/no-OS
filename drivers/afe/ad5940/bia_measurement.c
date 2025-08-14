@@ -714,7 +714,7 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
     fImpCar_Type Zdut = ad5940_ComplexDivInt(&Vdut, &Idut);
 
     printf(
-        "  DEBUG Zdut (%.0f + %.0f j) = Vdut (%d + %d j) / Idut (%d + %d j)\r\n",
+        "  DEBUG Zdut (%.0f + %.0f j) = Vdut (%ld + %ld j) / Idut (%ld + %ld j)\r\n",
         Zdut.Real, Zdut.Image,
         Vdut.Real, Vdut.Image,
         Idut.Real, Idut.Image

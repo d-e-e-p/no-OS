@@ -4006,7 +4006,7 @@ int ad5940_REFCfgS(struct ad5940_dev *dev, AFERefCfg_Type *pBufCfg);
 int ad5940_HSLoopCfgS(struct ad5940_dev *dev, HSLoopCfg_Type *pHsLoopCfg);
 int ad5940_SWMatrixCfgS(struct ad5940_dev *dev, SWMatrixCfg_Type *pSwMatrix);
 int ad5940_HSDacCfgS(struct ad5940_dev *dev, HSDACCfg_Type *pHsDacCfg);
-int ad5940_HSTIACfgS(struct ad5940_dev *dev, HSTIACfg_Type *pHsTiaCfg);
+int temp_ad5940_HSTIACfgS(struct ad5940_dev *dev, HSTIACfg_Type *pHsTiaCfg);
 
 /* 4. Low_Power_Loop Functions*/
 int ad5940_LPLoopCfgS(struct ad5940_dev *dev, LPLoopCfg_Type *pLpLoopCfg);
@@ -4144,6 +4144,7 @@ fImpCar_Type ad5940_ComplexMulInt(iImpCar_Type *a, iImpCar_Type *b);
 float     ad5940_ComplexMag(fImpCar_Type *a);
 float     ad5940_ComplexPhase(fImpCar_Type *a);
 
+void AD5940_StructInit(void *pStruct, uint32_t StructSize);
 /**
  * @} Exported_Functions
 */

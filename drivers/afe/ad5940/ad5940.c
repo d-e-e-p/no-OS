@@ -43,7 +43,7 @@
 #include "ad5940.h"
 
 static int AD5940_Initialize(struct ad5940_dev *dev);
-static void AD5940_StructInit(void *pStruct, uint32_t StructSize);
+void AD5940_StructInit(void *pStruct, uint32_t StructSize);
 
 /*! \mainpage AD5940 Library Introduction
  *
@@ -495,7 +495,7 @@ void ad5940_SweepNext(struct ad5940_dev *dev, SoftSweepCfg_Type *pSweepCfg,
 }
 
 /* Initialize Structure members to zero */
-static void AD5940_StructInit(void *pStruct, uint32_t StructSize)
+void AD5940_StructInit(void *pStruct, uint32_t StructSize)
 {
 	memset(pStruct, 0, StructSize);
 }
@@ -1051,7 +1051,7 @@ int ad5940_HSLoopCfgS(struct ad5940_dev *dev, HSLoopCfg_Type *pHsLoopCfg)
 	if (ret < 0)
 		return ret;
 
-	ret = ad5940_HSTIACfgS(dev, &pHsLoopCfg->HsTiaCfg);
+	ret = temp_ad5940_HSTIACfgS(dev, &pHsLoopCfg->HsTiaCfg);
 	if (ret < 0)
 		return ret;
 
@@ -1123,7 +1123,7 @@ int ad5940_HSDacCfgS(struct ad5940_dev *dev, HSDACCfg_Type *pHsDacCfg)
 
    @return return 0 in case of success, negative error code otherwise.
  */
-int ad5940_HSTIACfgS(struct ad5940_dev *dev, HSTIACfg_Type *pHsTiaCfg)
+int temp_ad5940_HSTIACfgS(struct ad5940_dev *dev, HSTIACfg_Type *pHsTiaCfg)
 {
 	int ret;
 	uint32_t tempreg;
@@ -2980,7 +2980,7 @@ int ad5940_HWReset(struct ad5940_dev *dev)
  *
  */
 
-int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
+int temp_ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		     void *pResult)
 {
 	int ret;
