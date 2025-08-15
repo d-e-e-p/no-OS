@@ -260,32 +260,23 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	DftRtia.Image = -DftRtia.Image;
 	DftRcal.Image = -DftRcal.Image;
 
-	if (pCalCfg->bPolarResult == false) {
-		float temp = (float)DftRcal.Real * DftRcal.Real + (float)
-			     DftRcal.Image * DftRcal.Image;
+    fImpCar_Type ZRcal_config = { pCalCfg->fRcal, 0.0f };
 
-		/* RTIA = (DftRtia.Real, DftRtia.Image)/(DftRcal.Real, DftRcal.Image)*fRcal */
-		((fImpCar_Type*)pResult)->Real = ((float)DftRtia.Real * DftRcal.Real +
-						  (float)DftRtia.Image * DftRcal.Image) / temp * pCalCfg->fRcal; /* Real Part */
-		((fImpCar_Type*)pResult)->Image = ((float)DftRtia.Image * DftRcal.Real -
-						   (float)DftRtia.Real * DftRcal.Image) / temp *
-						  pCalCfg->fRcal; /* Imaginary Part */
-	} else {
-		float RcalMag, RtiaMag, RtiaPhase;
-		RcalMag = sqrt((float)DftRcal.Real * DftRcal.Real + (float)
-			       DftRcal.Image * DftRcal.Image);
-		RtiaMag = sqrt((float)DftRtia.Real * DftRtia.Real + (float)
-			       DftRtia.Image * DftRtia.Image);
-		RtiaMag = (RtiaMag / RcalMag) * pCalCfg->fRcal;
-		RtiaPhase = atan2(DftRtia.Image, DftRtia.Real) - atan2(DftRcal.Image,
-				DftRcal.Real);
+    fImpCar_Type Zratio = ad5940_ComplexDivInt(&DftRtia, &DftRcal);
+    fImpCar_Type Zrtia  = ad5940_ComplexMulFloat(&Zratio, &ZRcal_config);
 
-		((fImpPol_Type*)pResult)->Magnitude = RtiaMag;
-		((fImpPol_Type*)pResult)->Phase = RtiaPhase;
-		printf("RTIA mag:%f,",RtiaMag);
-		printf("phase:%f\r\n",RtiaPhase*180/MATH_PI);
-	}
-	return 0;
+
+    if (pCalCfg->bPolarResult == false) {
+        *((fImpCar_Type*)pResult) = Zrtia;
+
+    } else {
+        float RtiaMag   = ad5940_ComplexMag(&Zrtia);
+        float RtiaPhase = ad5940_ComplexPhase(&Zrtia);
+
+        ((fImpPol_Type*)pResult)->Magnitude = RtiaMag;
+        ((fImpPol_Type*)pResult)->Phase     = RtiaPhase;
+    }
+    return 0;
 }
 
 
