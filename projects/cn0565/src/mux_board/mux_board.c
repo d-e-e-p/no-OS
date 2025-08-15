@@ -93,6 +93,7 @@ void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *ad5940,
 
     size_t total_electrodes = sizeof(board_map) / sizeof(board_map[0]);
 
+    //printf("Entering %s()\r\n", __func__);
     //printf("[DEBUG] setMuxSwitch: total_electrodes=%u\r\n", total_electrodes);
 
     ADG2128_SwRst(ad5940);
@@ -103,7 +104,7 @@ void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *ad5940,
             i2c_addr = board_map[curr_el].chip_addr;
             muxData[0] = board_map[curr_el].selector + i;
 
-            // printf("[DEBUG] Y%u -> electrode %u (curr_el=%u) i2c_addr=0x%02X selector=0x%02X\r\n",
+            //printf("[DEBUG] Y%u -> electrode %u (curr_el=%u) i2c_addr=0x%02X selector=0x%02X\r\n",
             //       i, *(Y + i), curr_el, i2c_addr, muxData[0]);
 
             i2c->slave_address = i2c_addr;

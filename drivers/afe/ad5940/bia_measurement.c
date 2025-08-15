@@ -51,7 +51,7 @@ AppBiaCfg_Type AppBiaCfg = {
 	.AdcClkFreq = 16000000.0,
 	.BiaODR = 20.0, /* 20.0 Hz*/
 	.NumOfData = -1,
-	.RcalVal = 10000.0, /* 10kOhm */
+	.RcalVal = 10.0, /* in ohm */
 
 	.PwrMod = AFEPWR_LP,
 	.HstiaRtiaSel = HSTIARTIA_200,
@@ -122,7 +122,7 @@ int AppBiaCtrl(struct ad5940_dev *dev, int32_t BcmCtrl, void *pPara)
 			return ret;
 
 		AppBiaCfg.FifoDataCount = 0; /* restart */
-		printf("BIA Started...\n\r");
+		printf("%s: FifoDataCount=%lu\n\r", __FUNCTION__, AppBiaCfg.FifoDataCount);
 		break;
 	}
 	case BIACTRL_STOPNOW: {

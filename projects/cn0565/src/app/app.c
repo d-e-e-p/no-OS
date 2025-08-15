@@ -171,8 +171,8 @@ uint16_t generateSwitchCombination(struct eit_config eitCfg, struct electrode_co
     uint8_t electrode;
 
     // see projects/cn0565/src/mux_board/mux_board.c for flipped sequence
-    uint8_t seq[] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22};
-    //uint8_t seq[] = {0, 22};
+    //uint8_t seq[] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22};
+    uint8_t seq[] = {0};
     for (seqCtr = 0; seqCtr < sizeof(seq)/sizeof(seq[0]); seqCtr++) {
         electrode = seq[seqCtr];
 
@@ -204,8 +204,8 @@ void AD5940BiaStructInit(void)
 
     //pBiaCfg->RcalVal = 1000.0; //Note: RCAL value should be similar to RTIA so the accuracy is best.
     pBiaCfg->RcalVal = 10.0; //Note: RCAL value should be similar to RTIA so the accuracy is best.
-    pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; 
-    //pBiaCfg->HstiaRtiaSel = HSTIARTIA_1K; 
+    //pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
+    pBiaCfg->HstiaRtiaSel = HSTIARTIA_1K; 
                               
                                
     pBiaCfg->DftNum = DFTNUM_8192;
@@ -217,7 +217,7 @@ void AD5940BiaStructInit(void)
     pBiaCfg->ADCSinc3Osr = ADCSINC3OSR_2;
 
     pBiaCfg->DacVoltPP = 800.0; // 800.0
-    pBiaCfg->SinFreq = 300.0; /* Hz */
+    pBiaCfg->SinFreq = 1000.0; /* Hz */
     pBiaCfg->SweepCfg.SweepEn = false;
     pBiaCfg->SweepCfg.SweepStart = 0;
     pBiaCfg->SweepCfg.SweepStop = 1000;
@@ -274,7 +274,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     printf("expected_samples %lu = SweepPoints %lu * FifoThresh %lu \r\n", 
         seq_expected_samples, pBiaCfg->SweepCfg.SweepPoints, pBiaCfg->FifoThresh);
 
-    printf(" GEMINI TODO: create function to call here:  ad5940_RcalCalibration(ad5940, pBiaCfg);\r\n");
+    printf(" TODO: create function to call here:  ad5940_RcalCalibration(ad5940, pBiaCfg);\r\n");
 
      for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
          printf("running seq %d: \r\n", switchSeqNum);
@@ -291,13 +291,14 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
          // Start measurement
          AppBiaCtrl(ad5940, BIACTRL_START, 0);
+         //no_os_udelay(100000000);
 
          fifocnt = 0;
          // Wait until enough samples for this sequence are ready
          while (fifocnt < seq_expected_samples) {
              ad5940_FIFOGetCnt(ad5940, &fifocnt);
              no_os_udelay(10);
-             printf("waiting for fifo count %lu/%lu\r\n", fifocnt, seq_expected_samples);
+             // printf("waiting for fifo count %lu/%lu\r\n", fifocnt, seq_expected_samples);
          }
 
          // Stop measurement
