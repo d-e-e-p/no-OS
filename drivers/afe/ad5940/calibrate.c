@@ -1,7 +1,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdint.h>
 #include <string.h>
+#include <inttypes.h>
 #include <errno.h>
 #include "no_os_delay.h"
 #include "no_os_spi.h"
@@ -9,6 +12,37 @@
 #include "no_os_alloc.h"
 #include "ad5940.h"
 #include "calibrate.h"
+
+
+#include <stdio.h>
+#include <stdint.h>
+
+void dump_ad5940_registers(void *dev, const char *tag)
+{
+    uint32_t rd;
+
+    ad5940_ReadReg(dev, REG_AFE_ADCDAT, &rd);
+    printf("%s: REG_AFE_ADCDAT     = 0x%08ld\r\n", tag, (unsigned long)rd);
+
+    ad5940_ReadReg(dev, REG_AFE_SINC2DAT, &rd);
+    printf("%s: REG_AFE_SINC2DAT   = 0x%08ld\r\n", tag, (unsigned long)rd);
+
+    ad5940_ReadReg(dev, REG_AFE_TEMPSENSDAT, &rd);
+    printf("%s: REG_AFE_TEMPSENSDAT= 0x%08ld\r\n", tag, (unsigned long)rd);
+
+    ad5940_ReadReg(dev, REG_AFE_DFTREAL, &rd);
+    printf("%s: REG_AFE_DFTREAL    = 0x%08ld\r\n", tag, (unsigned long)rd);
+
+    ad5940_ReadReg(dev, REG_AFE_DFTIMAG, &rd);
+    printf("%s: REG_AFE_DFTIMAG    = 0x%08ld\r\n", tag, (unsigned long)rd);
+
+    ad5940_ReadReg(dev, REG_AFE_STATSMEAN, &rd);
+    printf("%s: REG_AFE_STATSMEAN  = 0x%08ld\r\n", tag, (unsigned long)rd);
+
+    ad5940_ReadReg(dev, REG_AFE_STATSVAR, &rd);
+    printf("%s: REG_AFE_STATSVAR   = 0x%08ld\r\n", tag, (unsigned long)rd);
+}
+
 
 /**
    @brief void AD5940_HSTIACfgS(HSTIACfg_Type *pHsTiaCfg)
@@ -34,6 +68,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	uint32_t RtiaVal;
 	static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
 	uint32_t WgAmpWord;
+    float RcalVal = pCalCfg->fRcal;
+    fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
 	iImpCar_Type DftRcal, DftRtia;
 
@@ -61,7 +97,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	ADC input range is +-1.5V which is enough for calibration.
 
 	 */
-	ExcitVolt = 1800 * 0.8 * pCalCfg->fRcal / RtiaVal;
+	ExcitVolt = 1800 * 0.8 * RcalVal / RtiaVal;
+	ExcitVolt = 1800 * 0.8;
 
 	if (ExcitVolt <=
 	    800 * 0.05) { /* Voltage is so small that we can enable the attenuator of DAC(1/5) and Excitation buffer(1/4). 800mVpp is the DAC output voltage */
@@ -89,7 +126,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		WgAmpWord = ((uint32_t)(ExcitVolt / 1600 * 2047 * 2) + 1)
 			    >> 1; /* Assign value with rounding (0.5 LSB error) */
 	}
-    printf("ad5940_HSRtiaCal: using RtiaVal=%lu ExcitVolt=%f\r\n", RtiaVal, ExcitVolt);
+    printf("ad5940_HSRtiaCal: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f\r\n", RcalVal, RtiaVal, ExcitVolt);
 
 
 	if (WgAmpWord > 0x7ff)
@@ -202,6 +239,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	if (ret < 0)
 		return ret;
 
+    dump_ad5940_registers(dev, "Zcal");
+
 	ret = ad5940_ADCMuxCfgS(dev, ADCMUXP_HSTIA_P, ADCMUXN_HSTIA_N);
 	if (ret < 0)
 		return ret;
@@ -235,6 +274,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&DftRtia.Image);
 	if (ret < 0)
 		return ret;
+    dump_ad5940_registers(dev, "Ztia");
 
 	if (DftRcal.Real & (1 << 17))
 		DftRcal.Real |= 0xfffc0000;
@@ -260,18 +300,30 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	DftRtia.Image = -DftRtia.Image;
 	DftRcal.Image = -DftRcal.Image;
 
-    fImpCar_Type ZRcal_config = { pCalCfg->fRcal, 0.0f };
 
     fImpCar_Type Zratio = ad5940_ComplexDivInt(&DftRtia, &DftRcal);
-    fImpCar_Type Zrtia  = ad5940_ComplexMulFloat(&Zratio, &ZRcal_config);
+    fImpCar_Type Ztia  = ad5940_ComplexMulFloat(&Zratio, &ZcalVal);
+
+    printf(
+        "  DEBUG Zratio (%.0f + %.0f j) = Ztia (%" PRId32 " + %lu j) / Zcal (%lu + %lu j)\r\n",
+        Zratio.Real, Zratio.Image,
+        DftRtia.Real, DftRtia.Image,
+        DftRcal.Real, DftRcal.Image
+    );
+    printf(
+        "  DEBUG Ztia (%.0f + %.0f j) = Zratio (%.0f + %.0f j) / ZcalVal (%.0f + %.0f j)\r\n",
+        Ztia.Real, Ztia.Image,
+        Zratio.Real, Zratio.Image,
+        ZcalVal.Real, ZcalVal.Image
+    );
 
 
     if (pCalCfg->bPolarResult == false) {
-        *((fImpCar_Type*)pResult) = Zrtia;
+        *((fImpCar_Type*)pResult) = Ztia;
 
     } else {
-        float RtiaMag   = ad5940_ComplexMag(&Zrtia);
-        float RtiaPhase = ad5940_ComplexPhase(&Zrtia);
+        float RtiaMag   = ad5940_ComplexMag(&Ztia);
+        float RtiaPhase = ad5940_ComplexPhase(&Ztia);
 
         ((fImpPol_Type*)pResult)->Magnitude = RtiaMag;
         ((fImpPol_Type*)pResult)->Phase     = RtiaPhase;

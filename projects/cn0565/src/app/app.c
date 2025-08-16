@@ -204,8 +204,8 @@ void AD5940BiaStructInit(void)
 
     //pBiaCfg->RcalVal = 1000.0; //Note: RCAL value should be similar to RTIA so the accuracy is best.
     pBiaCfg->RcalVal = 10.0; //Note: RCAL value should be similar to RTIA so the accuracy is best.
-    //pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
-    pBiaCfg->HstiaRtiaSel = HSTIARTIA_1K; 
+    pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
+    //pBiaCfg->HstiaRtiaSel = HSTIARTIA_1K; 
                               
                                
     pBiaCfg->DftNum = DFTNUM_8192;
