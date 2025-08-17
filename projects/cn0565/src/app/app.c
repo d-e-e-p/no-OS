@@ -45,6 +45,7 @@
 #include "app.h"
 #include "parameters.h"
 #include "interactive.h"
+#include "impedance2LCR.h"
 
 extern struct no_os_uart_desc *uart;
 
@@ -281,8 +282,6 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
          setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum]);
          no_os_udelay(3);
 
-         //while(true) {
-          // Drain FIFO
           ad5940_FIFOGetCnt(ad5940, &fifocnt);
           if (fifocnt) {
              ad5940_FIFORd(ad5940, readbuf, fifocnt);
@@ -309,6 +308,10 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
          // Send results frequency point by frequency point
          uint32_t idx;
          uint32_t len = pBiaCfg->FifoThresh;
+
+         uint32_t sweepPoints = pBiaCfg->SweepCfg.SweepPoints;
+         ImpedanceDataPoint points[sweepPoints]; // VLA in C99
+
          for (uint32_t freqPoint = 0; freqPoint < pBiaCfg->SweepCfg.SweepPoints; freqPoint++) {
              idx = freqPoint * len;
              memcpy(AppBuff, &readbuf[idx], len * sizeof(uint32_t));
@@ -321,10 +324,21 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
              printf("idx = %ld/%ld freqSeq=%ld/%ld\r\n", 
                  idx, seq_expected_samples, freqPoint, pBiaCfg->SweepCfg.SweepPoints);
              SendResult(AppBuff, len, true, false);
+             points[freqPoint].frequency = pBiaCfg->FreqofData;
+             //points[impedance].frequency = ..
          }
-         //}
-     }
 
+         LCR_Result result = lcr_from_impedance(points, sweepPoints);
+
+         printf("\r\n--- LCR Fitting Results ---\r\n");
+         if (!isnan(result.L)) {
+             printf("seq: %d L = %eH C = %eH R=%e \r\n", 
+                     result.L, result.C, result.R, result.fit_error);
+         } else {
+             printf("LCR Fitting failed.\r\n");
+         }
+
+     }
 
     printf("complete init seq \r\n");
     AppBiaCtrl(ad5940, BIACTRL_STOPNOW, 0);

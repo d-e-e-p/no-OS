@@ -31,11 +31,13 @@ SRCS += $(DRIVERS)/api/no_os_spi.c \
 	$(NO-OS)/util/no_os_mutex.c \
 	$(DRIVERS)/afe/ad5940/bia_measurement.c \
 	$(DRIVERS)/afe/ad5940/ad5940.c \
-	$(DRIVERS)/afe/ad5940/calibrate.c
+	$(DRIVERS)/afe/ad5940/calibrate.c \
+	$(DRIVERS)/afe/ad5940/impedance2LCR.c
 
 INCS += $(DRIVERS)/afe/ad5940/bia_measurement.h \
 	$(DRIVERS)/afe/ad5940/ad5940.h \
-	$(DRIVERS)/afe/ad5940/calibrate.h 
+	$(DRIVERS)/afe/ad5940/calibrate.h  \
+	$(DRIVERS)/afe/ad5940/impedance2LCR.h
 
 ifeq (stm32,$(strip $(PLATFORM)))
 SRCS += $(PLATFORM_DRIVERS)/stm32_delay.c \
