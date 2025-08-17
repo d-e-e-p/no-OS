@@ -63,7 +63,7 @@ AppBiaCfg_Type AppBiaCfg = {
 
 	.SinFreq = 10000.0, /* 10000Hz */
 
-	.ADCPgaGain = ADCPGA_1,
+	.ADCPgaGain = ADCPGA_1P5, // optimal according to manual
 	.ADCSinc3Osr = ADCSINC3OSR_2,
 	.ADCSinc2Osr = ADCSINC2OSR_22,
 
@@ -693,44 +693,59 @@ void signExtend18To32(uint32_t *const pData, uint16_t nLen)
 	}
 }
 
+
 fImpCar_Type computeImpedance(uint32_t *const pData)
 {
-    // Step0: Interpret pData as two complex values: Voltage and Current
+    // Step0: interpret raw DFT outputs
     iImpCar_Type *pSrcData = (iImpCar_Type *)pData;
-    iImpCar_Type Vdut = *pSrcData;
-    iImpCar_Type Idut = *(pSrcData + 1);
-    // AD594x’s DFT hardware outputs the imaginary part with an opposite sign 
-    // Rtia inverting stage flips both the real and imaginary parts of the current’s phasor.
-    Vdut.Image = -Vdut.Image;
-    Idut.Real = -Idut.Real;
+    iImpCar_Type DftVdut_i  = *pSrcData;
+    iImpCar_Type DftVrtia_i = *(pSrcData + 1);
 
-    // Step1: fetch Zrtia from correlation run
-    fImpCar_Type Zrtia = { 
-        .Real  = AppBiaCfg.RtiaCurrValue[0], 
-        .Image = AppBiaCfg.RtiaCurrValue[1] 
+    // Fix AD5940 sign conventions
+    DftVdut_i.Image  = -DftVdut_i.Image;
+    DftVrtia_i.Real  = -DftVrtia_i.Real;
+
+    // Convert int -> float
+    fImpCar_Type DftVdut = {
+        .Real  = (float)DftVdut_i.Real,
+        .Image = (float)DftVdut_i.Image
+    };
+    fImpCar_Type DftVrtia = {
+        .Real  = (float)DftVrtia_i.Real,
+        .Image = (float)DftVrtia_i.Image
     };
 
-    // Step 2: Compute Zdut = Vdut / Idut
-    fImpCar_Type Zdut = ad5940_ComplexDivInt(&Vdut, &Idut);
+    // Step1: fetch Zrtia (already float)
+    fImpCar_Type Zrtia = {
+        .Real  = AppBiaCfg.RtiaCurrValue[0],
+        .Image = AppBiaCfg.RtiaCurrValue[1]
+    };
+
+    // Step2: compute current through DUT
+    fImpCar_Type Idut = ad5940_ComplexDivFloat(&DftVrtia, &Zrtia);
+
+    // Step3: compute impedance
+    fImpCar_Type Zdut = ad5940_ComplexDivFloat(&DftVdut, &Idut);
 
     printf(
-        "  DEBUG Zdut (%.0f + %.0f j) = Vdut (%ld + %ld j) / Idut (%ld + %ld j)\r\n",
-        Zdut.Real, Zdut.Image,
-        Vdut.Real, Vdut.Image,
-        Idut.Real, Idut.Image
-    );
-
-    // Step 3: Apply RTIA calibration: Zcal = Zdut * Zrtia
-    fImpCar_Type Zcal = ad5940_ComplexMulFloat(&Zdut, &Zrtia);
-    printf(
-        "  DEBUG Zcal (%.0f + %.0f j) = Zdut (%.0f + %.0f j) * Zrtia (%.0f + %.0f j)\r\n",
-        Zcal.Real,  Zcal.Image,
-        Zdut.Real,  Zdut.Image,
+        "%s: Idut = Vrtia (%.0f + %.0f j) / Zrtia (%.0f + %.0f j)\r\n",
+        __FUNCTION__,
+        DftVrtia.Real, DftVrtia.Image,
         Zrtia.Real, Zrtia.Image
     );
 
-    return Zcal;
+    printf(
+        "%s: Zdut (%.0f + %.0f j) = Vdut (%.0f + %.0f j) / Idut (%.0f + %.0f j)\r\n",
+        __FUNCTION__,
+        Zdut.Real, Zdut.Image,
+        DftVdut.Real, DftVdut.Image,
+        Idut.Real, Idut.Image
+    );
+
+
+    return Zdut;
 }
+
 
 fImpCar_Type OldcomputeImpedance(uint32_t *const pData)
 {

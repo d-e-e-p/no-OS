@@ -88,42 +88,11 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 
 	/* Calculate the excitation voltage we should use based on RCAL/Rtia */
 	RtiaVal = HpRtiaTable[pCalCfg->HsTiaCfg.HstiaRtiaSel];
-	/*
-	DAC output voltage calculation
-	Note: RCAL value should be similar to RTIA so the accuracy is best.
-	HSTIA output voltage should be limited to 0.2V to AVDD-0.2V, with 1.1V bias. We use 80% of this range for safe.
-	Because the bias voltage is fixed to 1.1V, so for AC signal maximum amplitude is 1.1V-0.2V = 0.9Vp. That's 1.8Vpp.
-	Formula is:    ExcitVolt(in mVpp) = (1800mVpp*80% / RTIA) * RCAL
-	ADC input range is +-1.5V which is enough for calibration.
-
-	 */
-	ExcitVolt = 1800 * 0.8 * RcalVal / RtiaVal;
+	ExcitBuffGain = EXCITBUFGAIN_2;
+	HsDacGain = HSDACGAIN_1;
+	/* Excitation buffer voltage full range is 800mVpp*2=1600mVpp */
 	ExcitVolt = 1800 * 0.8;
-
-	if (ExcitVolt <=
-	    800 * 0.05) { /* Voltage is so small that we can enable the attenuator of DAC(1/5) and Excitation buffer(1/4). 800mVpp is the DAC output voltage */
-		ExcitBuffGain = EXCITBUFGAIN_0P25;
-		HsDacGain = HSDACGAIN_0P2;
-		/* Excitation buffer voltage full range is 800mVpp*0.05 = 40mVpp */
-		WgAmpWord = ((uint32_t)(ExcitVolt / 40 * 2047 * 2) + 1)
-			    >> 1; /* Assign value with rounding (0.5 LSB error) */
-	} else if (ExcitVolt <= 800 * 0.25) { /* Enable Excitation buffer attenuator */
-		ExcitBuffGain = EXCITBUFGAIN_0P25;
-		HsDacGain = HSDACGAIN_1;
-		/* Excitation buffer voltage full range is 800mVpp*0.25 = 200mVpp */
-		WgAmpWord = ((uint32_t)(ExcitVolt / 200 * 2047 * 2) + 1)
-			    >> 1; /* Assign value with rounding (0.5 LSB error) */
-	} else if (ExcitVolt <= 800 * 0.4) { /* Enable DAC attenuator */
-		ExcitBuffGain = EXCITBUFGAIN_2;
-		HsDacGain = HSDACGAIN_0P2;
-		/* Excitation buffer voltage full range is 800mVpp*0.4 = 320mV */
-		WgAmpWord = ((uint32_t)(ExcitVolt / 320 * 2047 * 2) + 1)
-			    >> 1; /* Assign value with rounding (0.5 LSB error) */
-	} else { /* No attenuator is needed. This is the best condition which means RTIA is close to RCAL */
-		ExcitBuffGain = EXCITBUFGAIN_2;
-		HsDacGain = HSDACGAIN_1;
-		/* Excitation buffer voltage full range is 800mVpp*2=1600mVpp */
-		WgAmpWord = ((uint32_t)(ExcitVolt / 1600 * 2047 * 2) + 1)
+	WgAmpWord = ((uint32_t)(ExcitVolt / 1600 * 2047 * 2) + 1)
 			    >> 1; /* Assign value with rounding (0.5 LSB error) */
 	}
     printf("ad5940_HSRtiaCal: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f\r\n", RcalVal, RtiaVal, ExcitVolt);
@@ -178,7 +147,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	/* Configure DSP */
 	dsp_cfg.ADCBaseCfg.ADCMuxN = ADCMUXN_N_NODE;
 	dsp_cfg.ADCBaseCfg.ADCMuxP = ADCMUXP_P_NODE;
-	dsp_cfg.ADCBaseCfg.ADCPga = ADCPGA_1; /* @todo Change the gain? */
+	dsp_cfg.ADCBaseCfg.ADCPga = ADCPGA_1P5;
 	AD5940_StructInit(&dsp_cfg.ADCDigCompCfg, sizeof(dsp_cfg.ADCDigCompCfg));
 	dsp_cfg.ADCFilterCfg.ADCAvgNum =
 		ADCAVGNUM_16;  /* Don't care because it's disabled */
@@ -305,28 +274,28 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     fImpCar_Type Ztia  = ad5940_ComplexMulFloat(&Zratio, &ZcalVal);
 
     printf(
-        "  DEBUG Zratio (%.0f + %.0f j) = Ztia (%" PRId32 " + %lu j) / Zcal (%lu + %lu j)\r\n",
+        "  DEBUG Zratio (%.0f + %.0f j) = Dtia (%u + %u j) / Dcal (%u + %u j)\r\n",
         Zratio.Real, Zratio.Image,
         DftRtia.Real, DftRtia.Image,
         DftRcal.Real, DftRcal.Image
     );
     printf(
-        "  DEBUG Ztia (%.0f + %.0f j) = Zratio (%.0f + %.0f j) / ZcalVal (%.0f + %.0f j)\r\n",
-        Ztia.Real, Ztia.Image,
+        "  DEBUG ZtiaVal (%.0f + %.0f j) = Zratio (%.0f + %.0f j) * ZcalVal (%.0f + %.0f j)\r\n",
+        ZtiaVal.Real, ZtiaVal.Image,
         Zratio.Real, Zratio.Image,
         ZcalVal.Real, ZcalVal.Image
     );
 
 
     if (pCalCfg->bPolarResult == false) {
-        *((fImpCar_Type*)pResult) = Ztia;
+        *((fImpCar_Type*)pResult) = ZtiaVal;
 
     } else {
-        float RtiaMag   = ad5940_ComplexMag(&Ztia);
-        float RtiaPhase = ad5940_ComplexPhase(&Ztia);
+        float ZtiaValMag   = ad5940_ComplexMag(&ZtiaVal);
+        float ZtiaValPhase = ad5940_ComplexPhase(&ZtiaVal);
 
-        ((fImpPol_Type*)pResult)->Magnitude = RtiaMag;
-        ((fImpPol_Type*)pResult)->Phase     = RtiaPhase;
+        ((fImpPol_Type*)pResult)->Magnitude = ZtiaValMag;
+        ((fImpPol_Type*)pResult)->Phase     = ZtiaValPhase;
     }
     return 0;
 }
