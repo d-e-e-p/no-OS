@@ -71,7 +71,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     float RcalVal = pCalCfg->fRcal;
     fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
-	iImpCar_Type DftRcal, DftRtia;
+	iImpCar_Type Dcal, Dtia;
 
 	if (pCalCfg == NULL) return -EINVAL;
 	if (pCalCfg->fRcal == 0)
@@ -94,12 +94,9 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	ExcitVolt = 1800 * 0.8;
 	WgAmpWord = ((uint32_t)(ExcitVolt / 1600 * 2047 * 2) + 1)
 			    >> 1; /* Assign value with rounding (0.5 LSB error) */
-	}
-    printf("ad5940_HSRtiaCal: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f\r\n", RcalVal, RtiaVal, ExcitVolt);
-
-
 	if (WgAmpWord > 0x7ff)
 		WgAmpWord = 0x7ff;
+    printf("ad5940_HSRtiaCal: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f\r\n", RcalVal, RtiaVal, ExcitVolt);
 
 	ret = ad5940_AFECtrlS(dev, AFECTRL_ALL, false);  /* Init all to disable state */
 	if (ret < 0)
@@ -200,11 +197,11 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	if (ret < 0)
 		return ret;
 
-	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, (uint32_t *)&DftRcal.Real);
+	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, (uint32_t *)&Dcal.Real);
 	if (ret < 0)
 		return ret;
 
-	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&DftRcal.Image);
+	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&Dcal.Image);
 	if (ret < 0)
 		return ret;
 
@@ -236,48 +233,48 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	if (ret < 0)
 		return ret;
 
-	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, (uint32_t *)&DftRtia.Real);
+	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, (uint32_t *)&Dtia.Real);
 	if (ret < 0)
 		return ret;
 
-	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&DftRtia.Image);
+	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&Dtia.Image);
 	if (ret < 0)
 		return ret;
     dump_ad5940_registers(dev, "Ztia");
 
-	if (DftRcal.Real & (1 << 17))
-		DftRcal.Real |= 0xfffc0000;
-	if (DftRcal.Image & (1 << 17))
-		DftRcal.Image |= 0xfffc0000;
-	if (DftRtia.Real & (1 << 17))
-		DftRtia.Real |= 0xfffc0000;
-	if (DftRtia.Image & (1 << 17))
-		DftRtia.Image |= 0xfffc0000;
+	if (Dcal.Real & (1 << 17))
+		Dcal.Real |= 0xfffc0000;
+	if (Dcal.Image & (1 << 17))
+		Dcal.Image |= 0xfffc0000;
+	if (Dtia.Real & (1 << 17))
+		Dtia.Real |= 0xfffc0000;
+	if (Dtia.Image & (1 << 17))
+		Dtia.Image |= 0xfffc0000;
 	/*
 	ADC MUX is set to HSTIA_P and HSTIA_N.
 	While the current flow through RCAL and then into RTIA, the current direction should be from HSTIA_N to HSTIA_P if we
 	measure the voltage across RCAL by MUXSELP_P_NODE and MUXSELN_N_NODE.
 	So here, we add a negative sign to results
 	 */
-	DftRtia.Image = -DftRtia.Image;
-	DftRtia.Real =
-		-DftRtia.Real; /* Current is measured by MUX HSTIA_P-HSTIA_N. It should be  */
+	Dtia.Image = -Dtia.Image;
+	Dtia.Real =
+		-Dtia.Real; /* Current is measured by MUX HSTIA_P-HSTIA_N. It should be  */
 	/*
 	The impedance engine inside of AD594x give us Real part and Imaginary part of DFT. Due to technology used, the Imaginary
 	part in register is the opposite number. So we add a negative sign on the Imaginary part of results.
 	 */
-	DftRtia.Image = -DftRtia.Image;
-	DftRcal.Image = -DftRcal.Image;
+	Dtia.Image = -Dtia.Image;
+	Dcal.Image = -Dcal.Image;
 
 
-    fImpCar_Type Zratio = ad5940_ComplexDivInt(&DftRtia, &DftRcal);
-    fImpCar_Type Ztia  = ad5940_ComplexMulFloat(&Zratio, &ZcalVal);
+    fImpCar_Type Zratio = ad5940_ComplexDivInt(&Dtia, &Dcal);
+    fImpCar_Type ZtiaVal  = ad5940_ComplexMulFloat(&Zratio, &ZcalVal);
 
     printf(
-        "  DEBUG Zratio (%.0f + %.0f j) = Dtia (%u + %u j) / Dcal (%u + %u j)\r\n",
+        "  DEBUG Zratio (%.0f + %.0f j) = Dtia (%lu + %lu j) / Dcal (%lu + %lu j)\r\n",
         Zratio.Real, Zratio.Image,
-        DftRtia.Real, DftRtia.Image,
-        DftRcal.Real, DftRcal.Image
+        Dtia.Real, Dtia.Image,
+        Dcal.Real, Dcal.Image
     );
     printf(
         "  DEBUG ZtiaVal (%.0f + %.0f j) = Zratio (%.0f + %.0f j) * ZcalVal (%.0f + %.0f j)\r\n",

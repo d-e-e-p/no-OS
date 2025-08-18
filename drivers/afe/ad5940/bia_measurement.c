@@ -372,11 +372,31 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
 	if (ret < 0)
 		return ret;
 
-	/*************************************/
-	sw_cfg.Dswitch = SWD_CE0;
-	sw_cfg.Pswitch = SWP_CE0;
-	sw_cfg.Nswitch = SWN_AIN1;             //AIN0 AIN1
-	sw_cfg.Tswitch = SWT_AIN0 | SWT_TRTIA; //AIN0 AIN1
+	/*
+    Dswitch : D node = electrode sense pin
+    Pswitch : P node = excitation buffer output
+    Nswitch : N node = reference/return for excitation buffer
+    Tswitch : T node = HSTIA input (current measurement path)
+    */
+
+    bool bypass_rlimit_1k = true;
+
+    if (bypass_rlimit_1k) {
+        //  Excitation Buffer (P-node) → AIN1 → DUT → AIN0 → TIA
+        sw_cfg.Dswitch = SWD_AIN1; // AIN1 is the counter electrode pin.
+        sw_cfg.Pswitch = SWP_AIN1; // AIN1 will now be driven by the excitation buffer output.
+        sw_cfg.Nswitch = SWN_AIN2; //  return path for excitation 
+        sw_cfg.Tswitch = SWT_AIN0 | SWT_TRTIA; // AIN0 is routed into the TIA path (through RTIA, CTIA) so the current response from the DUT can be measured.
+    } else {
+        //  Excitation Buffer (P-node) → CE0 → DUT → AIN0 → TIA
+        sw_cfg.Dswitch = SWD_CE0; // CE0 is the counter electrode pin.
+        sw_cfg.Pswitch = SWP_CE0; // CE0 will now be driven by the excitation buffer output.
+        sw_cfg.Nswitch = SWN_AIN1; //  return path for excitation 
+        sw_cfg.Tswitch = SWT_AIN0 | SWT_TRTIA; // AIN0 is routed into the TIA path (through RTIA, CTIA) so the current response from the DUT can be measured.
+    }
+                                          
+                                           
+                                           
 	ret = ad5940_SWMatrixCfgS(dev, &sw_cfg);
 	if (ret < 0)
 		return ret;
@@ -699,39 +719,39 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
     // Step0: interpret raw DFT outputs
     iImpCar_Type *pSrcData = (iImpCar_Type *)pData;
     iImpCar_Type DftVdut_i  = *pSrcData;
-    iImpCar_Type DftVrtia_i = *(pSrcData + 1);
+    iImpCar_Type DftVtia_i = *(pSrcData + 1);
 
     // Fix AD5940 sign conventions
     DftVdut_i.Image  = -DftVdut_i.Image;
-    DftVrtia_i.Real  = -DftVrtia_i.Real;
+    DftVtia_i.Real  = -DftVtia_i.Real;
 
     // Convert int -> float
     fImpCar_Type DftVdut = {
         .Real  = (float)DftVdut_i.Real,
         .Image = (float)DftVdut_i.Image
     };
-    fImpCar_Type DftVrtia = {
-        .Real  = (float)DftVrtia_i.Real,
-        .Image = (float)DftVrtia_i.Image
+    fImpCar_Type DftVtia = {
+        .Real  = (float)DftVtia_i.Real,
+        .Image = (float)DftVtia_i.Image
     };
 
-    // Step1: fetch Zrtia (already float)
-    fImpCar_Type Zrtia = {
+    // Step1: fetch Ztia (already float)
+    fImpCar_Type Ztia = {
         .Real  = AppBiaCfg.RtiaCurrValue[0],
         .Image = AppBiaCfg.RtiaCurrValue[1]
     };
 
     // Step2: compute current through DUT
-    fImpCar_Type Idut = ad5940_ComplexDivFloat(&DftVrtia, &Zrtia);
+    fImpCar_Type Idut = ad5940_ComplexDivFloat(&DftVtia, &Ztia);
 
     // Step3: compute impedance
     fImpCar_Type Zdut = ad5940_ComplexDivFloat(&DftVdut, &Idut);
 
     printf(
-        "%s: Idut = Vrtia (%.0f + %.0f j) / Zrtia (%.0f + %.0f j)\r\n",
+        "%s: Idut = Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
         __FUNCTION__,
-        DftVrtia.Real, DftVrtia.Image,
-        Zrtia.Real, Zrtia.Image
+        DftVtia.Real, DftVtia.Image,
+        Ztia.Real, Ztia.Image
     );
 
     printf(
@@ -747,7 +767,7 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
 }
 
 
-fImpCar_Type OldcomputeImpedance(uint32_t *const pData)
+fImpCar_Type orig_computeImpedance(uint32_t *const pData)
 {
 	// 4 data. VRe, VIm, IRe, IIm
 	iImpCar_Type *pSrcData = (iImpCar_Type *)pData;

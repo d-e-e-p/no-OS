@@ -132,6 +132,12 @@ void SendResultIeee754(float *data, uint32_t DataCount)
     printf("%lx", pVal[i]);
 }
 
+fImpCar_Type GetImpedanceFromPdata(uint32_t *pData)
+{
+    return computeImpedance(pData);
+}
+
+
 void SendResult(uint32_t *pData, uint16_t len,
         bool bImpedanceReadMode, bool bMagnitudeMode)
 {
@@ -275,9 +281,8 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     printf("expected_samples %lu = SweepPoints %lu * FifoThresh %lu \r\n", 
         seq_expected_samples, pBiaCfg->SweepCfg.SweepPoints, pBiaCfg->FifoThresh);
 
-    printf(" TODO: create function to call here:  ad5940_RcalCalibration(ad5940, pBiaCfg);\r\n");
-
-     for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
+    LCR_Result res[switchSeqCnt]; // VLA in C99
+    for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
          printf("running seq %d: \r\n", switchSeqNum);
          setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum]);
          no_os_udelay(3);
@@ -323,25 +328,53 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
              printf("idx = %ld/%ld freqSeq=%ld/%ld\r\n", 
                  idx, seq_expected_samples, freqPoint, pBiaCfg->SweepCfg.SweepPoints);
-             SendResult(AppBuff, len, true, false);
+             fImpCar_Type Zdut = GetImpedanceFromPdata(AppBuff);
              points[freqPoint].frequency = pBiaCfg->FreqofData;
-             //points[impedance].frequency = ..
+             points[freqPoint].impedance = Zdut;
          }
 
          LCR_Result result = lcr_from_impedance(points, sweepPoints);
-
-         printf("\r\n--- LCR Fitting Results ---\r\n");
-         if (!isnan(result.L)) {
-             printf("seq: %d L = %eH C = %eH R=%e \r\n", 
-                     result.L, result.C, result.R, result.fit_error);
-         } else {
-             printf("LCR Fitting failed.\r\n");
-         }
+         res[switchSeqNum] = result;
 
      }
 
     printf("complete init seq \r\n");
     AppBiaCtrl(ad5940, BIACTRL_STOPNOW, 0);
+
+    for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
+         LCR_Result result = res[switchSeqNum];
+         printf("\r\n--- LCR Fitting Results ---\r\n");
+         if (!isnan(result.L)) {
+             printf("seq: %d L = %.1gmH C = %.1gµF R=%eΩ err=%.1g \r\n", 
+                     switchSeqNum, result.L * 1e3, result.C * 1e6, result.R, result.fit_error);
+         } else {
+             printf("seq: %d LCR Fitting failed.\r\n", switchSeqNum);
+         }
+    }
+
+    printf("╔══════════════════════════════════════════════════════════════╗\r\n");
+    printf("║                    LCR Fitting Results                       ║\r\n");
+    printf("╠═════╤══════════════╤══════════════╤═══════════════╤══════════╣\r\n");
+    printf("║ Seq │      L       │      C       │       R       │  Error   ║\r\n");
+    printf("║     │    (mH)      │     (µF)     │      (Ω)      │          ║\r\n");
+    printf("╞═════╪══════════════╪══════════════╪═══════════════╪══════════╡\r\n");
+
+    for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
+        LCR_Result result = res[switchSeqNum];
+        
+        if (!isnan(result.L)) {
+            printf("║ %3d │ %10.1g │ %10.1g │ %11.2e │ %8.1g ║\r\n",
+                    switchSeqNum, result.L * 1e3, result.C * 1e6, result.R, result.fit_error);
+        } else {
+            printf("║ %3d │    FITTING FAILED           │              │          ║\r\n", switchSeqNum);
+        }
+        
+        if (switchSeqNum < switchSeqCnt - 1) {
+            printf("╟─────┼──────────────┼──────────────┼───────────────┼──────────╢\r\n");
+        }
+    }
+
+    printf("╚═════╧══════════════╧══════════════╧═══════════════╧══════════╝\r\n");
 
 
     // OK, now go into interactive mode

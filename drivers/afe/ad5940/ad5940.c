@@ -1637,14 +1637,14 @@ int ad5940_ADCConvtCtrlS(struct ad5940_dev *dev, bool State)
 /**
    @brief void AD5940_ADCMuxCfgS(uint32_t ADCMuxP, uint32_t ADCMuxN)
           ====== Configure ADC input MUX
-   @param ADCMuxP : {ADCMUXP_FLOAT, ADCMUXP_HSTIA_P, ,,, ,ADCMUXP_P_NODE}
+   @param ADCMuxP : {ADCMUXP_FLOAT, ADCMUXP_HSTIA_P, ADCMUXP_P_NODE}
           - ADCMUXP_FLOAT: float ADC MUX positive input
           - ADCMUXP_HSTIA_P: High speed TIA output sense terminal
           - ADCMUXP_P_NODE: Excitation loop P node
-   @param ADCMuxN : {ADCMUXP_FLOAT, ADCMUXP_HSTIA_P, ,,, ,ADCMUXP_P_NODE}
-          - ADCMUXP_FLOAT: float ADC MUX positive input
-          - ADCMUXP_HSTIA_P: High speed TIA output sense terminal
-          - ADCMUXP_P_NODE: Excitation loop P node
+   @param ADCMuxN : {ADCMUXN_FLOAT, ADCMUXN_HSTIA_P, ADCMUXN_N_NODE}
+          - ADCMUXN_FLOAT: float ADC MUX positive input
+          - ADCMUXN_HSTIA_P: High speed TIA output sense terminal
+          - ADCMUXN_N_NODE: Negative node of excitation amplifier.
 
    @return return 0 in case of success, negative error code otherwise.
  */
@@ -2980,7 +2980,7 @@ int ad5940_HWReset(struct ad5940_dev *dev)
  *
  */
 
-int temp_ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
+int orig_ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		     void *pResult)
 {
 	int ret;

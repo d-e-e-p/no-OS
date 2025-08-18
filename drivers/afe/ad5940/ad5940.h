@@ -2610,9 +2610,9 @@ enum ad5940_afe_result {
 #define SWD_AIN2                    (1<<2)
 #define SWD_AIN3                    (1<<3)
 #define SWD_CE0                     (1<<4)
-//#define SWD_CE1                     (1<<5)  /** @todo add Switch D configuration for new added pins */
+#define SWD_CE1                     (1<<5)  /** @todo add Switch D configuration for new added pins */
 #define SWD_SE0                     (1<<6)
-//#define SWD_SE1                     (1<<7)
+#define SWD_SE1                     (1<<7)
 /** @} */
 
 /**
@@ -2634,10 +2634,10 @@ enum ad5940_afe_result {
 #define SWP_RE1                     (1<<5)
 #define SWP_SE0                     (1<<6)
 #define SWP_DE0                     (1<<7)
-//#define SWP_SE1                     (1<<8)
-//#define SWP_DE1                     (1<<9)
+#define SWP_SE1                     (1<<8)
+#define SWP_DE1                     (1<<9)
 #define SWP_CE0                     (1<<10)
-//#define SWP_CE1                     (1<<11)
+#define SWP_CE1                     (1<<11)
 #define SWP_PL                      (1<<13)
 #define SWP_PL2                     (1<<14)
 /** @} */
@@ -2993,32 +2993,39 @@ enum ad5940_afe_result {
  * @brief ADC Channel P Configuration
  * @{
 */
-#define ADCMUXP_FLOAT               0x0
-#define ADCMUXP_HSTIA_P             0x1
-#define ADCMUXP_AIN0                0x4
-#define ADCMUXP_AIN1                0x5
-#define ADCMUXP_AIN2                0x6
-#define ADCMUXP_AIN3                0x7
-#define ADCMUXP_AVDD_2              0x8
-#define ADCMUXP_DVDD_2              0x9
-#define ADCMUXP_AVDDREG             0xA     /**< AVDD internal regulator output. It's around 1.8V */
-#define ADCMUXP_TEMP                0xB     /**< Internal temperature output */
-#define ADCMUXP_VSET1P1             0xC     /**< Internal 1.1V bias voltage */
-#define ADCMUXP_VDE0                0xD     /**< Voltage of DE0 pin  */
-#define ADCMUXP_VSE0                0xE     /**< Voltage of SE0 pin  */
-#define ADCMUXP_VREF2P5             0x10    /**< The internal 2.5V reference buffer output. */
-#define ADCMUXP_VREF1P8DAC          0x12    /**< HSDAC 1.8V internal reference. It's only available when both AFECON.BIT20 and AFECON.BIT6 are set. */
-#define ADCMUXP_TEMPN               0x13    /**< Internal temperature output */
-#define ADCMUXP_AIN4                0x14    /**< Voltage of AIN4/LPF0 pin  */
-#define ADCMUXP_AIN6                0x16    /**< Voltage of AIN6 pin, not available on AD5941  */
-#define ADCMUXP_VZERO0              0x17    /**< Voltage of Vzero0 pin  */
-#define ADCMUXP_VBIAS0              0x18    /**< Voltage of Vbias0 pin  */
-#define ADCMUXP_VCE0                0x19
-#define ADCMUXP_VRE0                0x1A
-#define ADCMUXP_VCE0_2              0x1F    /**< VCE0 divide by 2 */
-#define ADCMUXP_LPTIA0_P            0x21
-#define ADCMUXP_AGND                0x23
-#define ADCMUXP_P_NODE              0x24    /**< Buffered voltage of excitation buffer P node.  */
+
+#define ADCMUXP_FLOAT        0x0   // Floating input.
+#define ADCMUXP_HSTIA_P      0x1   // High speed TIA positive signal.
+#define ADCMUXP_AIN0         0x4   // External analog input AIN0.
+#define ADCMUXP_AIN1         0x5   // External analog input AIN1.
+#define ADCMUXP_AIN2         0x6   // External analog input AIN2.
+#define ADCMUXP_AIN3         0x7   // External analog input AIN3 / BUF_VREF1V8.
+#define ADCMUXP_AVDD_2       0x8   // AVDD/2.
+#define ADCMUXP_DVDD_2       0x9   // DVDD/2.
+#define ADCMUXP_AVDDREG_2    0xA   // AVDD_REG/2 (~1.8 V).
+#define ADCMUXP_TEMP         0xB   // Internal temperature sensor (positive).
+#define ADCMUXP_VSET1P1      0xC   // VBIAS_CAP (~1.1 V bias capacitor node).
+#define ADCMUXP_VDE0         0xD   // Voltage at DE0 pin.
+#define ADCMUXP_VSE0         0xE   // Voltage at SE0 pin.
+#define ADCMUXP_AFE3         0xF   // Voltage at AFE3 pin.
+#define ADCMUXP_VREF1P25     0x10  // 1.25 V (internal 2.5 V reference / 2).
+#define ADCMUXP_VREF1P8DAC   0x12  // HSDAC 1.8 V internal reference.
+#define ADCMUXP_TEMPN        0x13  // Negative terminal of internal temp sensor (TEMPSEN_N).
+#define ADCMUXP_AIN4         0x14  // AIN4 / LPF0 pin.
+#define ADCMUXP_AIN6         0x16  // AIN6 (AD5940 only).
+#define ADCMUXP_VZERO0       0x17  // VZERO0 pin.
+#define ADCMUXP_VBIAS0       0x18  // VBIAS0 pin.
+#define ADCMUXP_VCE0         0x19  // Voltage on CE0 pin.
+#define ADCMUXP_VRE0         0x1A  // Voltage on RE0 pin.
+#define ADCMUXP_AFE4         0x1B  // Voltage of AFE4 pin.
+#define ADCMUXP_RESERVED1C   0x1C  // Reserved.
+#define ADCMUXP_AFE1         0x1D  // Voltage of AFE1 pin.
+#define ADCMUXP_AFE2         0x1E  // Voltage of AFE2 pin.
+#define ADCMUXP_VCE0_2       0x1F  // VCE0 / 2.
+#define ADCMUXP_LPTIA0_P     0x21  // Low power TIA positive output (LPTIA_P).
+#define ADCMUXP_AGND_REF     0x23  // AGND_REF.
+#define ADCMUXP_P_NODE       0x24  // Buffered voltage of excitation buffer P node.
+
 /**@}*/
 
 /**
@@ -3026,20 +3033,23 @@ enum ad5940_afe_result {
  * @brief ADC Channel N Configuration
  * @{
 */
-#define ADCMUXN_FLOAT               0x0
-#define ADCMUXN_HSTIA_N             0x1
-#define ADCMUXN_LPTIA0_N            0x2
-#define ADCMUXN_AIN0                0x4
-#define ADCMUXN_AIN1                0x5
-#define ADCMUXN_AIN2                0x6
-#define ADCMUXN_AIN3                0x7
-#define ADCMUXN_VSET1P1             0x8
-#define ADCMUXN_TEMPN               0xB
-#define ADCMUXN_AIN4                0xC
-#define ADCMUXN_AIN6                0xE
-#define ADCMUXN_VZERO0              0x10
-#define ADCMUXN_VBIAS0              0x11
-#define ADCMUXN_N_NODE              0x14    /**< Buffered voltage of excitation buffer N node.  */
+#define ADCMUXN_FLOAT        0x0   // Floating input.
+#define ADCMUXN_HSTIA_N      0x1   // High speed TIA negative input.
+#define ADCMUXN_LPTIA0_N     0x2   // Low power TIA negative input.
+#define ADCMUXN_AIN0         0x4   // External analog input AIN0.
+#define ADCMUXN_AIN1         0x5   // External analog input AIN1.
+#define ADCMUXN_AIN2         0x6   // External analog input AIN2.
+#define ADCMUXN_AIN3         0x7   // External analog input AIN3 / BUF_VREF1V8.
+#define ADCMUXN_VSET1P1      0x8   // VBIAS_CAP (1.1 V bias capacitor node).
+#define ADCMUXN_TEMPN        0xB   // Temperature sensor negative output (TEMPSEN_N).
+#define ADCMUXN_AIN4         0xC   // External analog input AIN4 / LPF0.
+#define ADCMUXN_AIN6         0xE   // External analog input AIN6 (AD5940 only).
+#define ADCMUXN_VZERO0       0x10  // VZERO0 pin.
+#define ADCMUXN_VBIAS0       0x11  // VBIAS0 pin.
+#define ADCMUXN_N_NODE       0x14  // Negative node of excitation amplifier.
+#define ADCMUXN_RESERVED15   0x15  // Reserved.
+#define ADCMUXN_RESERVED16   0x16  // Reserved.
+                                   
 /** @} */
 
 /**
