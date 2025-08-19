@@ -104,7 +104,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     WgAmpWord = ((uint32_t)(ExcitVolt / 40 * 2047 * 2) + 1)
                 >> 1; 
 
-    printf("ad5940_HSRtiaCal: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f\r\n", RcalVal, RtiaVal, ExcitVolt);
+    printf("%s: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f WgAmpWord=%lu\r\n", 
+            __FUNCTION__, RcalVal, RtiaVal, ExcitVolt, WgAmpWord);
 
 	ret = ad5940_AFECtrlS(dev, AFECTRL_ALL, false);  /* Init all to disable state */
 	if (ret < 0)
@@ -136,6 +137,16 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
 	hs_loop.SWMatCfg.Nswitch = SWN_RCAL1;
 	hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_TRTIA;
+
+    /*
+    // hack
+    hs_loop.SWMatCfg.Dswitch = SWD_CE0; // CE0 is the counter electrode pin.
+    hs_loop.SWMatCfg.Pswitch = SWP_RE0; // CE0 will now be driven by the excitation buffer output.
+    hs_loop.SWMatCfg.Nswitch = SWN_DE0; //  return path for excitation 
+    hs_loop.SWMatCfg.Tswitch = SWT_DE0 | SWT_TRTIA; // routed into the TIA path (through RTIA, CTIA) so the current response 
+    */
+
+
 	hs_loop.WgCfg.WgType = WGTYPE_SIN;
 	hs_loop.WgCfg.GainCalEn =
 		false;      /* @todo. If we have factory calibration data, enable it */
@@ -220,6 +231,16 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 
     ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, &regVal);
     Dcal.Image = (int32_t)(regVal << 14) >> 14;
+
+    /*
+    hs_loop.SWMatCfg.Dswitch = SWD_OPEN;
+    hs_loop.SWMatCfg.Pswitch = SWP_PL | SWP_PL2;
+    hs_loop.SWMatCfg.Nswitch = SWN_NL | SWN_NL2;
+    hs_loop.SWMatCfg.Tswitch = SWT_TRTIA;
+	ret = ad5940_HSLoopCfgS(dev, &hs_loop);
+	if (ret < 0)
+		return ret;
+     */
 
 	ret = ad5940_ADCMuxCfgS(dev, ADCMUXP_HSTIA_P, ADCMUXN_HSTIA_N);
 	if (ret < 0)

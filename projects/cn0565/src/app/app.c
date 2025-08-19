@@ -50,7 +50,7 @@
 extern struct no_os_uart_desc *uart;
 
 uint32_t AppBuff[APPBUFF_SIZE];
-struct electrode_combo swComboSeq[256]; // TODO review when nElCount is 32
+struct electrode_combo swComboSeq[32]; // TODO review when nElCount is 32
 
 float SinFreqVal = 0.0;
 unsigned int SinFreqValUINT = 0;
@@ -178,9 +178,9 @@ uint16_t generateSwitchCombination(struct eit_config eitCfg, struct electrode_co
     uint16_t seqCtr = 0;
     uint8_t electrode;
 
-    // see projects/cn0565/src/mux_board/mux_board.c for flipped sequence
+    // see projects/cn0565/src/mux_board/mux_board.c for sequence, was originally weird
     //uint8_t seq[] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22};
-    uint8_t seq[] = {0};
+    uint8_t seq[] = {18, 20, 22};
     for (seqCtr = 0; seqCtr < sizeof(seq)/sizeof(seq[0]); seqCtr++) {
         electrode = seq[seqCtr];
 
@@ -191,7 +191,7 @@ uint16_t generateSwitchCombination(struct eit_config eitCfg, struct electrode_co
         swSeq[seqCtr].F_minus = minus;
         swSeq[seqCtr].S_plus = plus;
         swSeq[seqCtr].S_minus = minus;
-        printf("seqCtr %d: plus=%d minus=%d \r\n",seqCtr, plus, minus);
+        //printf("seqCtr %d: plus=%d minus=%d \r\n",seqCtr, plus, minus);
 
       }
 
@@ -264,15 +264,26 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
     uint32_t fifocnt = 0;
     uint32_t readbuf[APPBUFF_SIZE]; // Ensure APPBUFF_SIZE >= seq_expected_samples
+    SWMatrixCfg_Type sw_cfg;
+
+    sw_cfg.Dswitch = SWD_RCAL0; // S+
+    sw_cfg.Pswitch = SWP_RCAL0; // F+
+    sw_cfg.Nswitch = SWN_RCAL1; // F-
+    sw_cfg.Tswitch = SWT_RCAL1 | SWT_TRTIA; // S-
+                                          
+    ret = ad5940_SWMatrixCfgS(ad5940, &sw_cfg);
+    if (ret < 0)
+        return ret;
+
 
     switchSeqCnt = generateSwitchCombination(oldEitCfg, swComboSeq);
+    setMuxSwitch(i2c, ad5940, swComboSeq[-1]);
 
     // run initial meas even before going into interactive mode
     // step1 : setup sequence
-    printf("%s", "!CMD Q OK\r\n");
+    printf("%s: OK\r\n", __FUNCTION__);
 
     AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
-    printf("start init seq \r\n");
     no_os_udelay(10);
 
     if (! pBiaCfg->SweepCfg.SweepEn) {
@@ -353,6 +364,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
          }
     }
 
+    /*
     printf("╔══════════════════════════════════════════════════════════════╗\r\n");
     printf("║                    LCR Fitting Results                       ║\r\n");
     printf("╠═════╤══════════════╤══════════════╤═══════════════╤══════════╣\r\n");
@@ -376,6 +388,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     }
 
     printf("╚═════╧══════════════╧══════════════╧═══════════════╧══════════╝\r\n");
+    */
 
 
     // OK, now go into interactive mode
