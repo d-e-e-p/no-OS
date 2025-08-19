@@ -134,6 +134,7 @@ void SendResultIeee754(float *data, uint32_t DataCount)
 
 fImpCar_Type GetImpedanceFromPdata(uint32_t *pData)
 {
+    signExtend18To32(pData, 4); // ??
     return computeImpedance(pData);
 }
 
@@ -283,7 +284,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
     LCR_Result res[switchSeqCnt]; // VLA in C99
     for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
-         printf("running seq %d: \r\n", switchSeqNum);
+         printf("running seq %d: at freq: %.0f \r\n", switchSeqNum, pBiaCfg->FreqofData);
          setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum]);
          no_os_udelay(3);
 

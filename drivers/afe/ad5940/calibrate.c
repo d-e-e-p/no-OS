@@ -72,6 +72,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
 	iImpCar_Type Dcal, Dtia;
+    uint32_t regVal;
 
 	if (pCalCfg == NULL) return -EINVAL;
 	if (pCalCfg->fRcal == 0)
@@ -96,6 +97,13 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 			    >> 1; /* Assign value with rounding (0.5 LSB error) */
 	if (WgAmpWord > 0x7ff)
 		WgAmpWord = 0x7ff;
+
+    ExcitVolt = 2300 * 0.8 * RcalVal / RtiaVal; 
+    ExcitBuffGain = EXCITBUFGAIN_0P25;
+    HsDacGain = HSDACGAIN_0P2;
+    WgAmpWord = ((uint32_t)(ExcitVolt / 40 * 2047 * 2) + 1)
+                >> 1; 
+
     printf("ad5940_HSRtiaCal: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f\r\n", RcalVal, RtiaVal, ExcitVolt);
 
 	ret = ad5940_AFECtrlS(dev, AFECTRL_ALL, false);  /* Init all to disable state */
@@ -205,7 +213,13 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	if (ret < 0)
 		return ret;
 
-    dump_ad5940_registers(dev, "Zcal");
+    /* --- Dcal --- */
+    //dump_ad5940_registers(dev, "Zcal");
+    ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, &regVal);
+    Dcal.Real = (int32_t)(regVal << 14) >> 14;
+
+    ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, &regVal);
+    Dcal.Image = (int32_t)(regVal << 14) >> 14;
 
 	ret = ad5940_ADCMuxCfgS(dev, ADCMUXP_HSTIA_P, ADCMUXN_HSTIA_N);
 	if (ret < 0)
@@ -233,56 +247,50 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	if (ret < 0)
 		return ret;
 
-	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, (uint32_t *)&Dtia.Real);
-	if (ret < 0)
-		return ret;
+    /* --- Dtia --- */
+    //dump_ad5940_registers(dev, "Ztia");
+    ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, &regVal);
+    Dtia.Real = (int32_t)(regVal << 14) >> 14;
 
-	ret = ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, (uint32_t *)&Dtia.Image);
-	if (ret < 0)
-		return ret;
-    dump_ad5940_registers(dev, "Ztia");
+    ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, &regVal);
+    Dtia.Image = (int32_t)(regVal << 14) >> 14;
 
-	if (Dcal.Real & (1 << 17))
-		Dcal.Real |= 0xfffc0000;
-	if (Dcal.Image & (1 << 17))
-		Dcal.Image |= 0xfffc0000;
-	if (Dtia.Real & (1 << 17))
-		Dtia.Real |= 0xfffc0000;
-	if (Dtia.Image & (1 << 17))
-		Dtia.Image |= 0xfffc0000;
-	/*
-	ADC MUX is set to HSTIA_P and HSTIA_N.
-	While the current flow through RCAL and then into RTIA, the current direction should be from HSTIA_N to HSTIA_P if we
-	measure the voltage across RCAL by MUXSELP_P_NODE and MUXSELN_N_NODE.
-	So here, we add a negative sign to results
-	 */
-	Dtia.Image = -Dtia.Image;
-	Dtia.Real =
-		-Dtia.Real; /* Current is measured by MUX HSTIA_P-HSTIA_N. It should be  */
-	/*
-	The impedance engine inside of AD594x give us Real part and Imaginary part of DFT. Due to technology used, the Imaginary
-	part in register is the opposite number. So we add a negative sign on the Imaginary part of results.
-	 */
-	Dtia.Image = -Dtia.Image;
-	Dcal.Image = -Dcal.Image;
+    /* Current flow & DFT convention corrections */
+    Dtia.Real  =  Dtia.Real;
+    Dtia.Image = -Dtia.Image;
+    Dcal.Real  = -Dcal.Real;
+    Dcal.Image =  Dcal.Image;
 
+    /*
+     * ADC MUX is set to HSTIA_P and HSTIA_N.
+     * Current flows through RCAL into RTIA. When measuring across RCAL 
+     * using MUXSELP_P_NODE and MUXSELN_N_NODE, the current direction is 
+     * HSTIA_N -> HSTIA_P.
+     * => So we flip the sign of both real and imag once here.
+     */
+    //Dtia.Real  = -Dtia.Real;
+    //Dtia.Image = -Dtia.Image;
 
-    fImpCar_Type Zratio = ad5940_ComplexDivInt(&Dtia, &Dcal);
+    /* The AD5940 DFT engine also inverts the imaginary part internally. */
+    //Dcal.Image = -Dcal.Image;
+
+    /* --- Do the complex ratio and scaling --- */
+    fImpCar_Type Zratio   = ad5940_ComplexDivInt(&Dtia, &Dcal);
     fImpCar_Type ZtiaVal  = ad5940_ComplexMulFloat(&Zratio, &ZcalVal);
 
-    printf(
-        "  DEBUG Zratio (%.0f + %.0f j) = Dtia (%lu + %lu j) / Dcal (%lu + %lu j)\r\n",
-        Zratio.Real, Zratio.Image,
-        Dtia.Real, Dtia.Image,
-        Dcal.Real, Dcal.Image
-    );
-    printf(
-        "  DEBUG ZtiaVal (%.0f + %.0f j) = Zratio (%.0f + %.0f j) * ZcalVal (%.0f + %.0f j)\r\n",
-        ZtiaVal.Real, ZtiaVal.Image,
-        Zratio.Real, Zratio.Image,
-        ZcalVal.Real, ZcalVal.Image
-    );
+    /* --- Debug prints: show signed integers for raw values --- */
+    printf("dtia = %ld + %ld j\r\n", Dtia.Real, Dtia.Image);
+    printf("dcal = %ld + %ld j\r\n", Dcal.Real, Dcal.Image);
 
+    printf("  DEBUG Zratio (%.0f + %.0f j) = Dtia (%ld + %ld j) / Dcal (%ld + %ld j)\r\n",
+           Zratio.Real, Zratio.Image,
+           Dtia.Real, Dtia.Image,
+           Dcal.Real, Dcal.Image);
+
+    printf("  DEBUG ZtiaVal (%.0f + %.0f j) = Zratio (%.0f + %.0f j) * ZcalVal (%.0f + %.0f j)\r\n",
+           ZtiaVal.Real, ZtiaVal.Image,
+           Zratio.Real, Zratio.Image,
+           ZcalVal.Real, ZcalVal.Image);
 
     if (pCalCfg->bPolarResult == false) {
         *((fImpCar_Type*)pResult) = ZtiaVal;
@@ -296,5 +304,6 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     }
     return 0;
 }
+
 
 

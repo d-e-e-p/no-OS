@@ -379,8 +379,7 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
     Tswitch : T node = HSTIA input (current measurement path)
     */
 
-    bool bypass_rlimit_1k = true;
-
+    bool bypass_rlimit_1k = false;
     if (bypass_rlimit_1k) {
         //  Excitation Buffer (P-node) → AIN1 → DUT → AIN0 → TIA
         sw_cfg.Dswitch = SWD_AIN1; // AIN1 is the counter electrode pin.
@@ -713,29 +712,37 @@ void signExtend18To32(uint32_t *const pData, uint16_t nLen)
 	}
 }
 
+/* helper: sign-extend 18-bit register value to 32-bit int and return float */
+static inline float dft_signext(uint32_t val)
+{
+    return (float)((int32_t)(val << 14) >> 14);  // shift left then arithmetic right
+}
 
 fImpCar_Type computeImpedance(uint32_t *const pData)
 {
     // Step0: interpret raw DFT outputs
+    fImpCar_Type DftVdut, DftVtia;
+
     iImpCar_Type *pSrcData = (iImpCar_Type *)pData;
-    iImpCar_Type DftVdut_i  = *pSrcData;
-    iImpCar_Type DftVtia_i = *(pSrcData + 1);
+    iImpCar_Type regVal0  = *pSrcData;
+    iImpCar_Type regVal1 = *(pSrcData + 1);
+
+    printf("r0=%lx + %lx j\r\n", regVal0.Real, regVal0.Image);
+    printf("r1=%lx + %lx j\r\n", regVal1.Real, regVal1.Image);
+
+    DftVdut.Real  = dft_signext(regVal0.Real);
+    DftVdut.Image = dft_signext(regVal0.Image);
+    DftVtia.Real  = dft_signext(regVal1.Real);
+    DftVtia.Image = dft_signext(regVal1.Image);
+
+    printf("DftVdut=%f + %f j\r\n", DftVdut.Real, DftVdut.Image);
+    printf("DftVtia=%f + %f j\r\n", DftVtia.Real, DftVtia.Image);
 
     // Fix AD5940 sign conventions
-    DftVdut_i.Image  = -DftVdut_i.Image;
-    DftVtia_i.Real  = -DftVtia_i.Real;
+    DftVdut.Image = -DftVdut.Image;
+    DftVtia.Image = -DftVtia.Image;
 
-    // Convert int -> float
-    fImpCar_Type DftVdut = {
-        .Real  = (float)DftVdut_i.Real,
-        .Image = (float)DftVdut_i.Image
-    };
-    fImpCar_Type DftVtia = {
-        .Real  = (float)DftVtia_i.Real,
-        .Image = (float)DftVtia_i.Image
-    };
-
-    // Step1: fetch Ztia (already float)
+    // Step1: fetch Ztia 
     fImpCar_Type Ztia = {
         .Real  = AppBiaCfg.RtiaCurrValue[0],
         .Image = AppBiaCfg.RtiaCurrValue[1]
@@ -748,14 +755,14 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
     fImpCar_Type Zdut = ad5940_ComplexDivFloat(&DftVdut, &Idut);
 
     printf(
-        "%s: Idut = Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
+        "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
         __FUNCTION__,
         DftVtia.Real, DftVtia.Image,
         Ztia.Real, Ztia.Image
     );
 
     printf(
-        "%s: Zdut (%.0f + %.0f j) = Vdut (%.0f + %.0f j) / Idut (%.0f + %.0f j)\r\n",
+        "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
         __FUNCTION__,
         Zdut.Real, Zdut.Image,
         DftVdut.Real, DftVdut.Image,
