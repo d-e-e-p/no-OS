@@ -34,6 +34,7 @@
 #include <errno.h>
 #include "bia_measurement.h"
 #include "calibrate.h"
+#include "measure.h"
 #include "app.h"
 
 /* Initial AD5940 settings */
@@ -558,6 +559,9 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 	} else {
 		hsrtia_cal.fFreq = AppBiaCfg.SinFreq;
 		ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, AppBiaCfg.RtiaCurrValue);
+		if (ret < 0)
+			return ret;
+		ret = ad5940_MeasureDUT(dev, &hsrtia_cal, AppBiaCfg.RtiaCurrValue);
 		if (ret < 0)
 			return ret;
 

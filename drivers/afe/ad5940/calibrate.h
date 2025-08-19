@@ -62,5 +62,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
              void *pResult);
 int ad5940_ADCPGACal(struct ad5940_dev *dev, ADCPGACal_Type *pADCPGACal);
 int ad5940_HSDACCal(struct ad5940_dev *dev, HSDACCal_Type *pCalCfg);
+void dump_afe_registers(void *dev, const char *tag);
+float decode_afe_result(uint32_t regVal);
 
 #endif /* CALIBRATE_H_ */

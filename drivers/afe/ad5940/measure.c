@@ -17,55 +17,11 @@
 #include <stdio.h>
 #include <stdint.h>
 
-void dump_afe_registers(void *dev, const char *tag)
-{
-    uint32_t rd;
-
-    ad5940_ReadReg(dev, REG_AFE_ADCDAT, &rd);
-    printf("%s: REG_AFE_ADCDAT     = 0x%08ld\r\n", tag, (unsigned long)rd);
-
-    ad5940_ReadReg(dev, REG_AFE_SINC2DAT, &rd);
-    printf("%s: REG_AFE_SINC2DAT   = 0x%08ld\r\n", tag, (unsigned long)rd);
-
-    ad5940_ReadReg(dev, REG_AFE_TEMPSENSDAT, &rd);
-    printf("%s: REG_AFE_TEMPSENSDAT= 0x%08ld\r\n", tag, (unsigned long)rd);
-
-    ad5940_ReadReg(dev, REG_AFE_DFTREAL, &rd);
-    printf("%s: REG_AFE_DFTREAL    = 0x%08ld\r\n", tag, (unsigned long)rd);
-
-    ad5940_ReadReg(dev, REG_AFE_DFTIMAG, &rd);
-    printf("%s: REG_AFE_DFTIMAG    = 0x%08ld\r\n", tag, (unsigned long)rd);
-
-    ad5940_ReadReg(dev, REG_AFE_STATSMEAN, &rd);
-    printf("%s: REG_AFE_STATSMEAN  = 0x%08ld\r\n", tag, (unsigned long)rd);
-
-    ad5940_ReadReg(dev, REG_AFE_STATSVAR, &rd);
-    printf("%s: REG_AFE_STATSVAR   = 0x%08ld\r\n", tag, (unsigned long)rd);
-}
-
-/* 
- * Decode an AFE result register value into float. 
- * Works for AFERESULT_DFTREAL / AFERESULT_DFTIMAG, which are 18-bit signed (Q2 format).
- */
-float decode_afe_result(uint32_t regVal)
-{
-    /* Sign extend 18-bit two's complement (bits [17:0]) into 32-bit */
-    int32_t val_q2 = (int32_t)(regVal << 14) >> 14;
-
-    /* Convert Q2 fixed-point to float (divide by 4) */
-    return (float)val_q2 / 4.0f;
-}
 
 /**
-   @brief void AD5940_HSTIACfgS(HSTIACfg_Type *pHsTiaCfg)
-          ====== Initialize High speed TIA amplifier
-   @param pWGInit : {0 - 0xffffffff}
-          - Pointer to configuration structure
-
-   @return return 0 in case of success, negative error code otherwise.
  */
 
-int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
+int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		     void *pResult)
 {
 	int ret;
@@ -83,7 +39,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     float RcalVal = pCalCfg->fRcal;
     fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
-	fImpCar_Type Dcal, Dtia;
+	fImpCar_Type DftVdut, DftVtia;
     uint32_t regVal;
 
 	if (pCalCfg == NULL) return -EINVAL;
@@ -228,23 +184,14 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	if (ret < 0)
 		return ret;
 
-    /* --- Dcal --- */
+
+    /* --- DftVdut --- */
     //dump_afe_registers(dev, "Zcal");
     ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, &regVal);
-    Dcal.Real = decode_afe_result(regVal);
+    DftVdut.Real = decode_afe_result(regVal);
 
     ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, &regVal);
-    Dcal.Image = decode_afe_result(regVal);
-
-    /*
-    hs_loop.SWMatCfg.Dswitch = SWD_OPEN;
-    hs_loop.SWMatCfg.Pswitch = SWP_PL | SWP_PL2;
-    hs_loop.SWMatCfg.Nswitch = SWN_NL | SWN_NL2;
-    hs_loop.SWMatCfg.Tswitch = SWT_TRTIA;
-	ret = ad5940_HSLoopCfgS(dev, &hs_loop);
-	if (ret < 0)
-		return ret;
-     */
+    DftVdut.Image = decode_afe_result(regVal);
 
 	ret = ad5940_ADCMuxCfgS(dev, ADCMUXP_HSTIA_P, ADCMUXN_HSTIA_N);
 	if (ret < 0)
@@ -272,61 +219,47 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	if (ret < 0)
 		return ret;
 
-    /* --- Dtia --- */
+    /* --- DftVtia --- */
     //dump_afe_registers(dev, "Ztia");
     ad5940_ReadAfeResult(dev, AFERESULT_DFTREAL, &regVal);
-    Dtia.Real = decode_afe_result(regVal);
+    DftVtia.Real = decode_afe_result(regVal);
 
     ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, &regVal);
-    Dtia.Image = decode_afe_result(regVal);
+    DftVtia.Image = decode_afe_result(regVal);
 
     /* Current flow & DFT convention corrections */
-    Dtia.Real  =  Dtia.Real;
-    Dtia.Image = -Dtia.Image;
-    Dcal.Real  = -Dcal.Real;
-    Dcal.Image =  Dcal.Image;
+    DftVtia.Real  =  DftVtia.Real;
+    DftVtia.Image = -DftVtia.Image;
+    DftVdut.Real  = -DftVdut.Real;
+    DftVdut.Image =  DftVdut.Image;
 
-    /*
-     * ADC MUX is set to HSTIA_P and HSTIA_N.
-     * Current flows through RCAL into RTIA. When measuring across RCAL 
-     * using MUXSELP_P_NODE and MUXSELN_N_NODE, the current direction is 
-     * HSTIA_N -> HSTIA_P.
-     * => So we flip the sign of both real and imag once here.
-     */
-    //Dtia.Real  = -Dtia.Real;
-    //Dtia.Image = -Dtia.Image;
+    fImpCar_Type Ztia = {
+        .Real  = 220,
+        .Image = 0,
+    };
 
-    /* The AD5940 DFT engine also inverts the imaginary part internally. */
-    //Dcal.Image = -Dcal.Image;
+    // Step2: compute current through DUT
+    fImpCar_Type DftIdut = ad5940_ComplexDivFloat(&DftVtia, &Ztia);
 
-    /* --- Do the complex ratio and scaling --- */
-    fImpCar_Type Zratio   = ad5940_ComplexDivFloat(&Dtia, &Dcal);
-    fImpCar_Type ZtiaVal  = ad5940_ComplexMulFloat(&Zratio, &ZcalVal);
+    // Step3: compute impedance
+    fImpCar_Type Zdut = ad5940_ComplexDivFloat(&DftVdut, &DftIdut);
 
-    /* --- Debug prints: show signed integers for raw values --- */
-    printf("dtia = %.2f + %.2f j\r\n", Dtia.Real, Dtia.Image);
-    printf("dcal = %.2f + %.2f j\r\n", Dcal.Real, Dcal.Image);
+    printf(
+        "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
+        __FUNCTION__,
+        DftVtia.Real, DftVtia.Image,
+        Ztia.Real, Ztia.Image
+    );
 
-    printf("  DEBUG Zratio (%.0f + %.0f j) = Dtia (%.0f + %.0f j) / Dcal (%.0f + %.0f j)\r\n",
-           Zratio.Real, Zratio.Image,
-           Dtia.Real, Dtia.Image,
-           Dcal.Real, Dcal.Image);
+    printf(
+        "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
+        __FUNCTION__,
+        Zdut.Real, Zdut.Image,
+        DftVdut.Real, DftVdut.Image,
+        DftIdut.Real, DftIdut.Image
+    );
 
-    printf("  DEBUG ZtiaVal (%.0f + %.0f j) = Zratio (%.0f + %.0f j) * ZcalVal (%.0f + %.0f j)\r\n",
-           ZtiaVal.Real, ZtiaVal.Image,
-           Zratio.Real, Zratio.Image,
-           ZcalVal.Real, ZcalVal.Image);
 
-    if (pCalCfg->bPolarResult == false) {
-        *((fImpCar_Type*)pResult) = ZtiaVal;
-
-    } else {
-        float ZtiaValMag   = ad5940_ComplexMag(&ZtiaVal);
-        float ZtiaValPhase = ad5940_ComplexPhase(&ZtiaVal);
-
-        ((fImpPol_Type*)pResult)->Magnitude = ZtiaValMag;
-        ((fImpPol_Type*)pResult)->Phase     = ZtiaValPhase;
-    }
     return 0;
 }
 
