@@ -51,7 +51,7 @@
 extern struct no_os_uart_desc *uart;
 
 uint32_t AppBuff[APPBUFF_SIZE];
-struct electrode_combo swComboSeq[32]; // TODO review when nElCount is 32
+struct electrode_combo swComboSeq[MUXBOARD_SIZE]; // TODO review when nElCount is 32
 
 float SinFreqVal = 0.0;
 unsigned int SinFreqValUINT = 0;

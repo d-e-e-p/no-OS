@@ -55,10 +55,13 @@ enum ElectrodeField {
    Xm - is one of the multiplexed electrode pins
    Yn - is one of the Bio Impedance Electrodes (F+, F-, S+, S-)
 
+usually:
    Y0 -> F+
    Y1 -> S+
    Y2 -> S-
    Y3 -> F-
+
+
 */
 struct adg2128_pinmap board_map[ADG2128_MUX_SIZE] = {
 	
