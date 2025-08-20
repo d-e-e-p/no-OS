@@ -12,6 +12,7 @@
 #include "no_os_alloc.h"
 #include "ad5940.h"
 #include "calibrate.h"
+#include "measure.h"
 
 
 #include <stdio.h>
@@ -65,7 +66,7 @@ float decode_afe_result(uint32_t regVal)
    @return return 0 in case of success, negative error code otherwise.
  */
 
-int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
+int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_Type *AppBiaCfg,
 		     void *pResult)
 {
 	int ret;
@@ -73,13 +74,9 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	HSLoopCfg_Type hs_loop;
 	DSPCfg_Type dsp_cfg;
 	bool bADCClk32MHzMode = false;
-	uint32_t ExcitBuffGain = EXCITBUFGAIN_2;
-	uint32_t HsDacGain = HSDACGAIN_1;
 
-	float ExcitVolt; /* Excitation voltage, unit is mV */
 	uint32_t RtiaVal;
 	static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
-	uint32_t WgAmpWord;
     float RcalVal = pCalCfg->fRcal;
     fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
@@ -99,25 +96,10 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	if (pCalCfg->AdcClkFreq > (32000000 * 0.8))
 		bADCClk32MHzMode = true;
 
-	/* Calculate the excitation voltage we should use based on RCAL/Rtia */
-	RtiaVal = HpRtiaTable[pCalCfg->HsTiaCfg.HstiaRtiaSel];
-	ExcitBuffGain = EXCITBUFGAIN_2;
-	HsDacGain = HSDACGAIN_1;
-	/* Excitation buffer voltage full range is 800mVpp*2=1600mVpp */
-	ExcitVolt = 1800 * 0.8;
-	WgAmpWord = ((uint32_t)(ExcitVolt / 1600 * 2047 * 2) + 1)
-			    >> 1; /* Assign value with rounding (0.5 LSB error) */
-	if (WgAmpWord > 0x7ff)
-		WgAmpWord = 0x7ff;
-
-    ExcitVolt = 2300 * 0.8 * RcalVal / RtiaVal; 
-    ExcitBuffGain = EXCITBUFGAIN_0P25;
-    HsDacGain = HSDACGAIN_0P2;
-    WgAmpWord = ((uint32_t)(ExcitVolt / 40 * 2047 * 2) + 1)
-                >> 1; 
-
-    printf("%s: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f WgAmpWord=%lu\r\n", 
-            __FUNCTION__, RcalVal, RtiaVal, ExcitVolt, WgAmpWord);
+    /* Calculate the excitation voltage we should use based on setting */
+    ExcitConfig excit_config = compute_excit_config(AppBiaCfg->DesiredVoltage);
+    printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
+            __FUNCTION__, excit_config.requested_vpp, excit_config.actual_vpp);
 
 	ret = ad5940_AFECtrlS(dev, AFECTRL_ALL, false);  /* Init all to disable state */
 	if (ret < 0)
@@ -141,8 +123,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		return ret;
 
 	/* Configure HP Loop */
-	hs_loop.HsDacCfg.ExcitBufGain = ExcitBuffGain;
-	hs_loop.HsDacCfg.HsDacGain = HsDacGain;
+	hs_loop.HsDacCfg.ExcitBufGain = excit_config.ExcitBuffGain;
+	hs_loop.HsDacCfg.HsDacGain = excit_config.HsDacGain;
 	hs_loop.HsDacCfg.HsDacUpdateRate = 7; /* Set it to highest update rate */
 	memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
 	hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
@@ -157,7 +139,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	hs_loop.WgCfg.OffsetCalEn = false;
 	hs_loop.WgCfg.SinCfg.SinFreqWord = ad5940_WGFreqWordCal(pCalCfg->fFreq,
 					   pCalCfg->SysClkFreq);
-	hs_loop.WgCfg.SinCfg.SinAmplitudeWord = WgAmpWord;
+	hs_loop.WgCfg.SinCfg.SinAmplitudeWord = excit_config.WgAmpWord;
 	hs_loop.WgCfg.SinCfg.SinOffsetWord = 0;
 	hs_loop.WgCfg.SinCfg.SinPhaseWord = 0;
 	ret = ad5940_HSLoopCfgS(dev, &hs_loop);

@@ -12,20 +12,13 @@
 #include "no_os_alloc.h"
 #include "ad5940.h"
 #include "calibrate.h"
+#include "measure.h"
 #include "impedance2LCR.h"
 
 
 #include <stdio.h>
 #include <stdint.h>
 
-// WgAmpWord config
-typedef struct {
-    float requested_vpp;    // what you asked for
-    float actual_vpp;       // what the hardware will generate
-    uint16_t WgAmpWord;     // DAC word (0–2047)
-    uint8_t ExcitBuffGain;  // excitation buffer gain
-    uint8_t HsDacGain;      // DAC atten
-} ExcitConfig;
 
 float decode_fifo_word(uint32_t w)
 {
@@ -112,15 +105,15 @@ ExcitConfig compute_excit_config(float desired_vpp)
     float inamp_gain = 1.0f;
     float atten      = 1.0f;
 
-    if (desired_vpp <= 800 * 0.05f) {
+    if (desired_vpp <= 40) {
         cfg.ExcitBuffGain = EXCITBUFGAIN_0P25; inamp_gain = 0.25f;
         cfg.HsDacGain     = HSDACGAIN_0P2;     atten      = 0.2f;
         full_scale        = 40.0f;   // mVpp
-    } else if (desired_vpp <= 800 * 0.25f) {
+    } else if (desired_vpp <= 200) {
         cfg.ExcitBuffGain = EXCITBUFGAIN_0P25; inamp_gain = 0.25f;
         cfg.HsDacGain     = HSDACGAIN_1;       atten      = 1.0f;
         full_scale        = 200.0f;  // mVpp
-    } else if (desired_vpp <= 800 * 0.4f) {
+    } else if (desired_vpp <= 320) {
         cfg.ExcitBuffGain = EXCITBUFGAIN_2;    inamp_gain = 2.0f;
         cfg.HsDacGain     = HSDACGAIN_0P2;     atten      = 0.2f;
         full_scale        = 320.0f;  // mVpp
@@ -159,7 +152,6 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg
 
 	/* Calculate the excitation voltage we should use based on setting */
     ExcitConfig excit_config = compute_excit_config(AppBiaCfg->DesiredVoltage);
-
     printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
             __FUNCTION__, excit_config.requested_vpp, excit_config.actual_vpp);
 
@@ -331,8 +323,8 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg
     DftVdut.Image =  DftVdut.Image;
 
     fImpCar_Type Ztia = {
-        .Real  = 220,
-        .Image = 0,
+        .Real  = AppBiaCfg->RtiaCurrValue[0],
+        .Image = AppBiaCfg->RtiaCurrValue[1],
     };
 
     printf("%s: dtia = %.2f + %.2f j\r\n", __FUNCTION__, DftVtia.Real, DftVtia.Image);

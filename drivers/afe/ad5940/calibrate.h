@@ -58,7 +58,7 @@ typedef struct
 #define AD5940ERR_APPERROR        -100  /**< Used in example code to indicated the application has not been initialized. */
 /** @} */
 
-int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
+int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_Type *AppBiaCfg,
              void *pResult);
 int ad5940_ADCPGACal(struct ad5940_dev *dev, ADCPGACal_Type *pADCPGACal);
 int ad5940_HSDACCal(struct ad5940_dev *dev, HSDACCal_Type *pCalCfg);

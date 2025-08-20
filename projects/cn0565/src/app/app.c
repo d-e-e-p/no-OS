@@ -163,6 +163,15 @@ void SendResult(uint32_t *pData, uint16_t len,
     }
 }
 
+void print_int_array(const char *name, int *arr, size_t n) {
+    printf("%s = { ", name);
+    for (size_t i = 0; i < n; i++) {
+        printf("%d", arr[i]);
+        if (i != n - 1) printf(", ");
+    }
+    printf(" }\r\n");
+}
+
 // switch combination setup that allows independent measurement of each up-down connector pair 
 // in Left to right order, instead of default 0x70, 0x71, swapped order
 uint16_t generateSwitchCombination(struct eit_config eitCfg, struct electrode_combo *swSeq)
@@ -175,8 +184,10 @@ uint16_t generateSwitchCombination(struct eit_config eitCfg, struct electrode_co
 
     // see projects/cn0565/src/mux_board/mux_board.c for sequence, was originally weird
     //uint8_t seq[] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22};
-    uint8_t seq[] = {20, 22};
-    for (seqCtr = 0; seqCtr < sizeof(seq)/sizeof(seq[0]); seqCtr++) {
+    int seq[] = {20, 22};
+    size_t numSeq = sizeof(seq)/sizeof(seq[0]);
+    print_int_array("seq_list", seq, numSeq);
+    for (seqCtr = 0; seqCtr < numSeq; seqCtr++) {
         electrode = seq[seqCtr];
 
         plus = electrode;
@@ -246,14 +257,6 @@ void print_float_array(const char *name, float *arr, size_t n) {
     printf(" }\r\n");
 }
 
-void print_int_array(const char *name, uint16_t *arr, size_t n) {
-    printf("%s = { ", name);
-    for (size_t i = 0; i < n; i++) {
-        printf("%d", arr[i]);
-        if (i != n - 1) printf(", ");
-    }
-    printf(" }\r\n");
-}
 
 int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 {
@@ -292,15 +295,14 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
     switchSeqCnt = generateSwitchCombination(oldEitCfg, swComboSeq);
     setMuxSwitch(i2c, ad5940, swComboSeq[0]);
-    print_int_array("seq_list", swComboSeq, switchSeqCnt);
 
     // run initial meas before going into interactive mode
     // step1 : setup sequence
-    float freq_list[] = {100, 200, 300, 400, 500, 600, 700, 800, 900, 1000};
+    float freq_list[] = {100, 200, 500, 1000};
     size_t num_freq = sizeof(freq_list) / sizeof(freq_list[0]);
     print_float_array("freq_list", freq_list, num_freq);
 
-    float desired_vpp[] = {1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0};
+    float desired_vpp[] = {20, 100, 200, 500, 1000, 2000};
     size_t num_volt = sizeof(desired_vpp)/sizeof(desired_vpp[0]);
     print_float_array("desired_vpp", desired_vpp, num_volt);
 
@@ -331,7 +333,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
             LCR_Result result = lcr_from_impedance(resZ[switchSeqNum][i], num_freq);
             resLCR[switchSeqNum][i] = result;
             if (!isnan(result.L)) {
-                printf("seq: %d volt=%.1f Hz L = %.3g mH C = %.3g µF R=%.3g Ω err=%.2g \r\n", 
+                printf("seq: %d volt=%.1f V L = %.3g mH C = %.3g µF R=%.3g Ω err=%.2g \r\n", 
                         switchSeqNum, desired_vpp[i], 
                         result.L * 1e3, result.C * 1e6, result.R, result.fit_error * 1e3);
             } else {

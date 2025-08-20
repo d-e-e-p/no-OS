@@ -4127,8 +4127,8 @@ int ad5940_HWReset(struct ad5940_dev
 
 /* Calibration functions */
 /* 8. Calibration */
-int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
-		     void *pResult);
+//int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
+//		     void *pResult);
 int ad5940_LPRtiaCal(struct ad5940_dev *dev, LPRTIACal_Type *pCalCfg,
 		     void *pResult);
 int ad5940_LFOSCMeasure(struct ad5940_dev *dev, LFOSCMeasure_Type *pCfg,

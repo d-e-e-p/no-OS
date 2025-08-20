@@ -566,7 +566,7 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 		AppBiaCfg.SweepCfg.SweepIndex = 0; /* Reset index */
 		for (i = 0; i < AppBiaCfg.SweepCfg.SweepPoints; i++) {
 			ad5940_SweepNext(dev, &AppBiaCfg.SweepCfg, &hsrtia_cal.fFreq);
-			ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, AppBiaCfg.RtiaCalTable[i]);
+			ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, &AppBiaCfg, AppBiaCfg.RtiaCalTable[i]);
 			if (ret < 0) {
 				printf("problem with sweep:%lu ret:%d\r\n", i, ret);
 				return ret;
@@ -580,7 +580,7 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 		AppBiaCfg.SweepCfg.SweepIndex = 0; /* Reset index */
 	} else {
 		hsrtia_cal.fFreq = AppBiaCfg.SinFreq;
-		ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, AppBiaCfg.RtiaCurrValue);
+		ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, &AppBiaCfg, AppBiaCfg.RtiaCurrValue);
 		if (ret < 0)
 			return ret;
 	}
