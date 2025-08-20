@@ -45,6 +45,7 @@
 #include "app.h"
 #include "parameters.h"
 #include "interactive.h"
+#include "measure.h"
 #include "impedance2LCR.h"
 
 extern struct no_os_uart_desc *uart;
@@ -130,12 +131,6 @@ void SendResultIeee754(float *data, uint32_t DataCount)
     }
 
     printf("%lx", pVal[i]);
-}
-
-fImpCar_Type GetImpedanceFromPdata(uint32_t *pData)
-{
-    signExtend18To32(pData, 4); // ??
-    return computeImpedance(pData);
 }
 
 
@@ -264,22 +259,22 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
     uint32_t fifocnt = 0;
     uint32_t readbuf[APPBUFF_SIZE]; // Ensure APPBUFF_SIZE >= seq_expected_samples
+    
+    /*
     SWMatrixCfg_Type sw_cfg;
-
     sw_cfg.Dswitch = SWD_RCAL0; // S+
     sw_cfg.Pswitch = SWP_RCAL0; // F+
     sw_cfg.Nswitch = SWN_RCAL1; // F-
     sw_cfg.Tswitch = SWT_RCAL1 | SWT_TRTIA; // S-
-                                          
     ret = ad5940_SWMatrixCfgS(ad5940, &sw_cfg);
     if (ret < 0)
         return ret;
-
+    */
 
     switchSeqCnt = generateSwitchCombination(oldEitCfg, swComboSeq);
-    setMuxSwitch(i2c, ad5940, swComboSeq[-1]);
+    setMuxSwitch(i2c, ad5940, swComboSeq[1]);
 
-    // run initial meas even before going into interactive mode
+    // run initial meas before going into interactive mode
     // step1 : setup sequence
     printf("%s: OK\r\n", __FUNCTION__);
 
@@ -327,7 +322,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
          uint32_t len = pBiaCfg->FifoThresh;
 
          uint32_t sweepPoints = pBiaCfg->SweepCfg.SweepPoints;
-         ImpedanceDataPoint points[sweepPoints]; // VLA in C99
+         ImpedanceDataPoint points[sweepPoints]; // 
 
          for (uint32_t freqPoint = 0; freqPoint < pBiaCfg->SweepCfg.SweepPoints; freqPoint++) {
              idx = freqPoint * len;
@@ -340,7 +335,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
              printf("idx = %ld/%ld freqSeq=%ld/%ld\r\n", 
                  idx, seq_expected_samples, freqPoint, pBiaCfg->SweepCfg.SweepPoints);
-             fImpCar_Type Zdut = GetImpedanceFromPdata(AppBuff);
+             fImpCar_Type Zdut = computeImpedanceFromFifo(pBiaCfg, AppBuff);
              points[freqPoint].frequency = pBiaCfg->FreqofData;
              points[freqPoint].impedance = Zdut;
          }

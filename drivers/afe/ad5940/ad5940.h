@@ -2598,98 +2598,102 @@ enum ad5940_afe_result {
  *    @defgroup SWD_Const
  *    @brief Switch D set. This is bitmask for register DSWFULLCON.
  *    @details
+ *        Connects the D-node of the excitation amplifier
  *        It's used to initialize structure @ref SWMatrixCfg_Type
  *        The bitmasks can be OR'ed together. For example
  *          - `SWD_AIN1|SWD_RCAL0` means close SWD_AIN1 and SWD_RCAL0 in same time, and open all other D switches.
  *          - `SWD_AIN2` means close SWD_AIN2 and open all other D switches.
  *    @{
 */
-#define SWD_OPEN                    (0<<0)
-#define SWD_RCAL0                   (1<<0)
-#define SWD_AIN1                    (1<<1)
-#define SWD_AIN2                    (1<<2)
-#define SWD_AIN3                    (1<<3)
-#define SWD_CE0                     (1<<4)
-#define SWD_CE1                     (1<<5)  /** @todo add Switch D configuration for new added pins */
-#define SWD_SE0                     (1<<6)
-#define SWD_SE1                     (1<<7)
+#define SWD_OPEN                    (0<<0)  // open all D switches
+#define SWD_RCAL0                   (1<<0)  // DR0
+#define SWD_AIN1                    (1<<1)  // D2
+#define SWD_AIN2                    (1<<2)  // D3
+#define SWD_AIN3                    (1<<3)  // D4
+#define SWD_CE0                     (1<<4)  // D5
+#define SWD_CE1                     (1<<5)  // D6 (reserved?)
+#define SWD_SE0                     (1<<6)  // D7
+#define SWD_SE1                     (1<<7)  // D8 AFE3
 /** @} */
 
 /**
  * @defgroup SWP_Const
  * @brief Switch P set. This is bitmask for register PSWFULLCON.
  * @details
+ *        Positive nodes of the excitation amplifier
  *        It's used to initialize structure @ref SWMatrixCfg_Type.
  *        The bitmasks can be OR'ed together. For example
  *          - `SWP_RCAL0|SWP_AIN1` means close SWP_RCAL0 and SWP_AIN1 in same time, and open all other P switches.
  *          - `SWP_SE0` means close SWP_SE0 and open all other P switches.
  * @{
 */
-#define SWP_OPEN                    0       /* Open all P switches */
-#define SWP_RCAL0                   (1<<0)
-#define SWP_AIN1                    (1<<1)
-#define SWP_AIN2                    (1<<2)
-#define SWP_AIN3                    (1<<3)
-#define SWP_RE0                     (1<<4)
-#define SWP_RE1                     (1<<5)
-#define SWP_SE0                     (1<<6)
-#define SWP_DE0                     (1<<7)
-#define SWP_SE1                     (1<<8)
-#define SWP_DE1                     (1<<9)
-#define SWP_CE0                     (1<<10)
-#define SWP_CE1                     (1<<11)
-#define SWP_PL                      (1<<13)
-#define SWP_PL2                     (1<<14)
+#define SWP_OPEN                    0         // Open all P switches 
+#define SWP_RCAL0                   (1<<0)    // PR0
+#define SWP_AIN1                    (1<<1)    // P2
+#define SWP_AIN2                    (1<<2)    // P3
+#define SWP_AIN3                    (1<<3)    // P4
+#define SWP_RE0                     (1<<4)    // P5
+#define SWP_RE1                     (1<<5)    // P6  AFE2 pin
+#define SWP_SE0                     (1<<6)    // P7
+#define SWP_DE0                     (1<<7)    // P8
+#define SWP_SE1                     (1<<8)    // P9  AFE3 pin
+#define SWP_DE1                     (1<<9)    // P10 reserved
+#define SWP_CE0                     (1<<10)   // P11 
+#define SWP_CE1                     (1<<11)   // P12 reserved
+#define SWP_PL                      (1<<13)   // PL
+#define SWP_PL2                     (1<<14)   // PL2
 /** @} */
 
 /**
  * @defgroup SWN_Const
  * @brief Switch N set. This is bitmask for register NSWFULLCON.
  * @details
+ *        Negative node of the excitation amplifier
  *        It's used to initialize structure @ref SWMatrixCfg_Type.
  *        The bitmasks can be OR'ed together. For example
  *          - `SWN_RCAL0|SWN_AIN1` means close SWN_RCAL0 and SWN_AIN1 in same time, and open all other N switches.
  *          - `SWN_SE0` means close SWN_SE0 and open all other N switches.
  * @{
 */
-#define SWN_OPEN                    0       /**< Open all N switches */
-#define SWN_RCAL1                   (1<<9)
-#define SWN_AIN0                    (1<<0)
-#define SWN_AIN1                    (1<<1)
-#define SWN_AIN2                    (1<<2)
-#define SWN_AIN3                    (1<<3)
-#define SWN_SE0LOAD                 (1<<4)  /**< SE0_LOAD is different from PIN SE0. It's the point after 100Ohm load resistor */
-#define SWN_DE0LOAD                 (1<<5)
-#define SWN_SE1LOAD                 (1<<6)
-#define SWN_DE1LOAD                 (1<<7)
-#define SWN_SE0                     (1<<8)  /**< SE0 here means the PIN SE0. */
-#define SWN_NL                      (1<<10)
-#define SWN_NL2                     (1<<11)
+#define SWN_OPEN                    0         // Open all N switches 
+#define SWN_RCAL1                   (1<<9)    // NR1
+#define SWN_AIN0                    (1<<0)    // N1
+#define SWN_AIN1                    (1<<1)    // N2
+#define SWN_AIN2                    (1<<2)    // N3
+#define SWN_AIN3                    (1<<3)    // N4
+#define SWN_SE0LOAD                 (1<<4)    // N5 SE0 pin via RLOAD_SE0.
+#define SWN_DE0LOAD                 (1<<5)    // N6 SE0 <<-- BUG
+#define SWN_SE1LOAD                 (1<<6)    // N7 AFE3 pin via the RLOAD_AFE3 resistor.
+#define SWN_DE1LOAD                 (1<<7)    // N8 reserved
+#define SWN_SE0                     (1<<8)    // N9 SE0 pin, bypassing the RLOAD_SE0 resistor.
+#define SWN_NL                      (1<<10)   // NL
+#define SWN_NL2                     (1<<11)   // NL2
 /** @} */
 
 /**
  * @defgroup SWT_Const
  * @brief Switch T set. This is bitmask for register TSWFULLCON.
  * @details
+ *        Inverting input of the high speed TIA.
  *        It's used to initialize structure @ref SWMatrixCfg_Type.
  *        The bitmasks can be OR'ed together. For example
  *          - SWT_RCAL0|SWT_AIN1 means close SWT_RCAL0 and SWT_AIN1 in same time, and open all other T switches.
  *          - SWT_SE0LOAD means close SWT_SE0LOAD and open all other T switches.
  * @{
 */
-#define SWT_OPEN                    0         /**< Open all T switches */
-#define SWT_RCAL1                   (1<<11)
-#define SWT_AIN0                    (1<<0)
-#define SWT_AIN1                    (1<<1)
-#define SWT_AIN2                    (1<<2)
-#define SWT_AIN3                    (1<<3)
-#define SWT_SE0LOAD                 (1<<4)    /**< SE0_LOAD is different from PIN SE0. It's the point after 100Ohm load resistor */
-#define SWT_DE0                     (1<<5)    /**< Metal edit */
-#define SWT_SE1LOAD                 (1<<6)
-#define SWT_DE1                     (1<<7)    /**< Metal edit */
-#define SWT_TRTIA                   (1<<8)    /**< T9 switch. Connect RTIA to T matrix */
-#define SWT_DE0LOAD                 (1<<9)
-#define SWT_DE1LOAD                 (1<<10)
+#define SWT_OPEN                    0         // Open all T switches 
+#define SWT_RCAL1                   (1<<11)   // TR1
+#define SWT_AIN0                    (1<<0)    // T1 AIN0 pin via the T9 switch
+#define SWT_AIN1                    (1<<1)    // T2 AIN1 pin via the T9 switch
+#define SWT_AIN2                    (1<<2)    // T3 AIN2 pin via the T9 switch
+#define SWT_AIN3                    (1<<3)    // T4 AIN3 pin via the T9 switch.
+#define SWT_SE0LOAD                 (1<<4)    // T5 SE0 pin thru RLOAD_SE0 via the T9 switch
+#define SWT_DE0                     (1<<5)    // T6 RCALx path to the DE0 input to calibrate the RLOAD_DE0 and RTIA_DE0
+#define SWT_SE1LOAD                 (1<<6)    // T7 
+#define SWT_DE1                     (1<<7)    // T8 reserved
+#define SWT_TRTIA                   (1<<8)    // T9 used along with T1, T2, T3, T4, T5, and T6.
+#define SWT_DE0LOAD                 (1<<9)    // T10 DE0 pin
+#define SWT_DE1LOAD                 (1<<10)   // T11 reserved
 /** @} */
 
 /** @} Switch_Matrix_Block_Const */

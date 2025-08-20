@@ -17,9 +17,83 @@
 #include <stdio.h>
 #include <stdint.h>
 
+float decode_fifo_word(uint32_t w)
+{
+    /* Extract sequence ID */
+    uint8_t seqid = (w >> 23) & 0x03;
 
-/**
- */
+    /* Extract channel ID bits [22:16] */
+    uint8_t chid  = (w >> 16) & 0x7F;   // 7 bits
+    uint8_t chid5 = chid & 0x1F;        // lower 5 bits (real channel ID)
+    uint8_t subid = chid & 0x03;        // lower 2 bits (extra info when chid=11111)
+
+    /* Is it DFT? */
+    bool is_dft = (chid5 == 0x1F);
+
+    /* Extract 18-bit signed payload */
+    uint32_t raw18 = w & 0x3FFFF;
+    int32_t val_q2 = (int32_t)(raw18 << 14) >> 14;  // sign extend 18→32
+
+    /* Convert to float, divide by 4 to remove 2 fractional bits */
+    float fval = (float)val_q2 / 4.0f;
+
+    /* Diagnostics */
+    printf("%s: seq=%u channel=0x%02X type=%X is_dft=%s fval=%.2f\r\n", 
+            __FUNCTION__, seqid, chid5, subid, is_dft ? "true" : "false", fval);
+
+    return fval;
+}
+
+
+fImpCar_Type computeImpedanceFromFifo(AppBiaCfg_Type *pBiaCfg, uint32_t *const pData)
+{
+
+    // Step0: interpret raw DFT outputs
+    fImpCar_Type DftVdut, DftVtia;
+    DftVdut.Real  = decode_fifo_word(pData[0]);
+    DftVdut.Image = decode_fifo_word(pData[1]);
+    DftVtia.Real  = decode_fifo_word(pData[2]);
+    DftVtia.Image = decode_fifo_word(pData[3]);
+
+    printf("DftVdut=%f + %f j\r\n", DftVdut.Real, DftVdut.Image);
+    printf("DftVtia=%f + %f j\r\n", DftVtia.Real, DftVtia.Image);
+
+    // Fix AD5940 sign conventions
+    DftVdut.Image = -DftVdut.Image;
+    DftVtia.Image = -DftVtia.Image;
+
+    // Step1: fetch Ztia 
+    fImpCar_Type Ztia = {
+        .Real  = pBiaCfg->RtiaCurrValue[0],
+        .Image = pBiaCfg->RtiaCurrValue[1]
+    };
+
+    // Step2: compute current through DUT
+    fImpCar_Type Idut = ad5940_ComplexDivFloat(&DftVtia, &Ztia);
+
+    // Step3: compute impedance
+    fImpCar_Type Zdut = ad5940_ComplexDivFloat(&DftVdut, &Idut);
+
+    printf(
+        "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
+        __FUNCTION__,
+        DftVtia.Real, DftVtia.Image,
+        Ztia.Real, Ztia.Image
+    );
+
+    printf(
+        "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
+        __FUNCTION__,
+        Zdut.Real, Zdut.Image,
+        DftVdut.Real, DftVdut.Image,
+        Idut.Real, Idut.Image
+    );
+
+
+    return Zdut;
+}
+
+
 
 int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		     void *pResult)
@@ -37,7 +111,7 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
 	uint32_t WgAmpWord;
     float RcalVal = pCalCfg->fRcal;
-    fImpCar_Type ZcalVal = { RcalVal, 0.0f };
+    //fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
 	fImpCar_Type DftVdut, DftVtia;
     uint32_t regVal;
@@ -101,20 +175,21 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	hs_loop.HsDacCfg.HsDacGain = HsDacGain;
 	hs_loop.HsDacCfg.HsDacUpdateRate = 7; /* Set it to highest update rate */
 	memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
+    /* 
+    // orig rcal measure
 	hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
 	hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
 	hs_loop.SWMatCfg.Nswitch = SWN_RCAL1;
 	hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_TRTIA;
-
-    /*
-    // hack
-    hs_loop.SWMatCfg.Dswitch = SWD_CE0; // CE0 is the counter electrode pin.
-    hs_loop.SWMatCfg.Pswitch = SWP_RE0; // CE0 will now be driven by the excitation buffer output.
-    hs_loop.SWMatCfg.Nswitch = SWN_DE0; //  return path for excitation 
-    hs_loop.SWMatCfg.Tswitch = SWT_DE0 | SWT_TRTIA; // routed into the TIA path (through RTIA, CTIA) so the current response 
     */
 
-
+    // measure DUT
+    hs_loop.SWMatCfg.Dswitch = SWD_CE0; // S+
+    hs_loop.SWMatCfg.Pswitch = SWP_CE0; // F+
+    // RLOAD02 and RLOAD04 are fixed 100 Ω for SE0 and AFE3.
+    hs_loop.SWMatCfg.Nswitch = SWN_SE0LOAD; // F-
+    hs_loop.SWMatCfg.Tswitch = SWT_SE0LOAD | SWT_TRTIA;  // S-
+                                                        
 	hs_loop.WgCfg.WgType = WGTYPE_SIN;
 	hs_loop.WgCfg.GainCalEn =
 		false;      /* @todo. If we have factory calibration data, enable it */
@@ -228,7 +303,7 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     DftVtia.Image = decode_afe_result(regVal);
 
     /* Current flow & DFT convention corrections */
-    DftVtia.Real  =  DftVtia.Real;
+    DftVtia.Real  = -DftVtia.Real;
     DftVtia.Image = -DftVtia.Image;
     DftVdut.Real  = -DftVdut.Real;
     DftVdut.Image =  DftVdut.Image;
@@ -237,6 +312,9 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
         .Real  = 220,
         .Image = 0,
     };
+
+    printf("%s: dtia = %.2f + %.2f j\r\n", __FUNCTION__, DftVtia.Real, DftVtia.Image);
+    printf("%s: ddut = %.2f + %.2f j\r\n", __FUNCTION__, DftVdut.Real, DftVdut.Image);
 
     // Step2: compute current through DUT
     fImpCar_Type DftIdut = ad5940_ComplexDivFloat(&DftVtia, &Ztia);

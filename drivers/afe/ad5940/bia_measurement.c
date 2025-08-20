@@ -381,15 +381,21 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
     Pswitch : P node = excitation buffer output
     Nswitch : N node = reference/return for excitation buffer
     Tswitch : T node = HSTIA input (current measurement path)
+
+    Y0 -> F+    CE0
+    Y1 -> S+    RE0
+    Y2 -> S-    SE0
+    Y3 -> F-    DE0
+
     */
 
     bool schematic_path = true;
     if (schematic_path) {
         //  Excitation Buffer (P-node) → AIN1 → DUT → AIN0 → TIA
         sw_cfg.Dswitch = SWD_CE0; //  S+
-        sw_cfg.Pswitch = SWP_RE0; //  F+
-        sw_cfg.Nswitch = SWN_DE0; //  F-
-        sw_cfg.Tswitch = SWT_DE0 | SWT_TRTIA; // S-
+        sw_cfg.Pswitch = SWP_CE0; //  F+
+        sw_cfg.Nswitch = SWN_SE0LOAD; //  F-
+        sw_cfg.Tswitch = SWT_SE0LOAD | SWT_TRTIA; // S-
     } else {
         //  Excitation Buffer (P-node) → CE0 → DUT → AIN0 → TIA
         sw_cfg.Dswitch = SWD_CE0; // CE0 is the counter electrode pin.
@@ -398,13 +404,6 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
         sw_cfg.Tswitch = SWT_AIN0 | SWT_TRTIA; // AIN0 is routed into the TIA path (through RTIA, CTIA) so the current response from the DUT can be measured.
     }
 
-    // hack
-    sw_cfg.Dswitch = SWD_RCAL0; 
-    sw_cfg.Pswitch = SWP_RCAL0; 
-    sw_cfg.Nswitch = SWN_RCAL1; 
-    sw_cfg.Tswitch = SWN_RCAL1 | SWT_TRTIA; 
-                                          
-                                           
 	ret = ad5940_SWMatrixCfgS(dev, &sw_cfg);
 	if (ret < 0)
 		return ret;
