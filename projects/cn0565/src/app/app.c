@@ -278,8 +278,15 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     // step1 : setup sequence
     printf("%s: OK\r\n", __FUNCTION__);
 
-    AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
+    for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
+        printf("%s:----------------------- exp switch %d \r\n", __FUNCTION__, switchSeqNum);
+        setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum]);
+        pBiaCfg->bParamsChanged = true;
+        // pBiaCfg->SinFreq = 1000;
+        AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
+    }
     no_os_udelay(10);
+    return 0;
 
     if (! pBiaCfg->SweepCfg.SweepEn) {
         pBiaCfg->SweepCfg.SweepPoints = 1; 

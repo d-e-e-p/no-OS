@@ -249,11 +249,9 @@ static int AppBiaSeqCfgGen(struct ad5940_dev *dev)
 	hs_loop.WgCfg.SinCfg.SinFreqWord = ad5940_WGFreqWordCal(sin_freq,
 					   AppBiaCfg.SysClkFreq);
     uint32_t WgAmpWord = (uint32_t)(AppBiaCfg.DacVoltPP / 800.0f * 2047 + 0.5f);
-    WgAmpWord = 4708;
 	hs_loop.WgCfg.SinCfg.SinAmplitudeWord = WgAmpWord;
 	hs_loop.WgCfg.SinCfg.SinOffsetWord = 0;
 	hs_loop.WgCfg.SinCfg.SinPhaseWord = 0;
-    printf("%s : hs_loop.WgCfg using  WgAmpWord=%lu\r\n", __FUNCTION__, WgAmpWord);                   
 
 	ret = ad5940_HSLoopCfgS(dev, &hs_loop);
 	if (ret < 0)
@@ -445,7 +443,7 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
 		return ret;
 
 	if (bImpedanceMode) {
-        printf("%s: impedance mode = %d\r\n", __FUNCTION__, bImpedanceMode);
+        //printf("%s: impedance mode = %d\r\n", __FUNCTION__, bImpedanceMode);
 		/*************************************/
 		ret = ad5940_ADCMuxCfgS(dev, ADCMUXP_HSTIA_P, ADCMUXN_HSTIA_N);
 		if (ret < 0)
@@ -507,7 +505,6 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
 	AppBiaCfg.MeasureSeqInfo.pSeqCmd = pSeqCmd;
 	AppBiaCfg.MeasureSeqInfo.SeqLen = SeqLen;
 	/* Write command to SRAM */
-	printf("AppBiaSeqMeasureGen: pSeqCmd=%lu SeqLen=%lu\r\n", *pSeqCmd, SeqLen);
 	return ad5940_SEQCmdWrite(dev, AppBiaCfg.MeasureSeqInfo.SeqRamAddr, pSeqCmd,
 				  SeqLen);
 }
@@ -594,7 +591,7 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		return ret;
 
 	/* Do RTIA calibration */
-	printf("AppBiaInit: Do RTIA calibration  \r\n");
+	printf("%s: Do RTIA calibration  \r\n", __FUNCTION__);
 
 	if ((AppBiaCfg.bParamsChanged == true) || (AppBiaCfg.ReDoRtiaCal == true) ||
 	    AppBiaCfg.BiaInited == false) { /* Do calibration on the first initializaion */
@@ -607,7 +604,6 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		AppBiaCfg.ReDoRtiaCal = false;
 	}
 	/* Reconfigure FIFO */
-	printf("AppBiaInit: Reconfigure FIFO \r\n");
 	ret = ad5940_FIFOCtrlS(dev, FIFOSRC_DFT, false); /* Disable FIFO firstly */
 	if (ret < 0)
 		return ret;
@@ -627,7 +623,6 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		return ret;
 
 	/* Start sequence generator */
-	printf("AppBiaInit: start sequence generator \r\n");
 	/* Initialize sequencer generator */
 	if ((AppBiaCfg.BiaInited == false) ||
 	    (AppBiaCfg.bParamsChanged == true)) {
@@ -652,7 +647,6 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 	}
 
 	/* Initialization sequencer  */
-	printf("AppBiaInit: Initialization sequencer \r\n");
 	AppBiaCfg.InitSeqInfo.WriteSRAM = false;
 	ret = ad5940_SEQInfoCfg(dev, &AppBiaCfg.InitSeqInfo);
 	if (ret < 0)
@@ -668,7 +662,6 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		;
 
 	/* Measurment sequence  */
-	printf("AppBiaInit: Measurment sequence \r\n");
 	AppBiaCfg.MeasureSeqInfo.WriteSRAM = false;
 	ad5940_SEQInfoCfg(dev, &AppBiaCfg.MeasureSeqInfo);
 
