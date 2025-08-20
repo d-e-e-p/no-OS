@@ -150,14 +150,6 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	hs_loop.SWMatCfg.Nswitch = SWN_RCAL1;
 	hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_TRTIA;
 
-    /*
-    // hack
-    hs_loop.SWMatCfg.Dswitch = SWD_CE0; // CE0 is the counter electrode pin.
-    hs_loop.SWMatCfg.Pswitch = SWP_RE0; // CE0 will now be driven by the excitation buffer output.
-    hs_loop.SWMatCfg.Nswitch = SWN_DE0LOAD; //  return path for excitation 
-    hs_loop.SWMatCfg.Tswitch = SWT_DE0 | SWT_TRTIA; // routed into the TIA path (through RTIA, CTIA) so the current response 
-    */
-
 
 	hs_loop.WgCfg.WgType = WGTYPE_SIN;
 	hs_loop.WgCfg.GainCalEn =

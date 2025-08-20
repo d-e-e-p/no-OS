@@ -184,11 +184,22 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     */
 
     // measure DUT
+    //
+
+    
+     
     hs_loop.SWMatCfg.Dswitch = SWD_CE0; // S+
     hs_loop.SWMatCfg.Pswitch = SWP_CE0; // F+
     // RLOAD02 and RLOAD04 are fixed 100 Ω for SE0 and AFE3.
     hs_loop.SWMatCfg.Nswitch = SWN_SE0LOAD; // F-
     hs_loop.SWMatCfg.Tswitch = SWT_SE0LOAD | SWT_TRTIA;  // S-
+
+    
+    // use alternative x->y connection scheme to     
+    hs_loop.SWMatCfg.Dswitch = SWD_CE0; // S+
+    hs_loop.SWMatCfg.Pswitch = SWP_CE0; // F+
+    hs_loop.SWMatCfg.Nswitch = SWN_AIN1; // F-
+    hs_loop.SWMatCfg.Tswitch = SWT_AIN1 | SWT_TRTIA;  // S-
                                                         
 	hs_loop.WgCfg.WgType = WGTYPE_SIN;
 	hs_loop.WgCfg.GainCalEn =
