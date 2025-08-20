@@ -12,10 +12,20 @@
 #include "no_os_alloc.h"
 #include "ad5940.h"
 #include "calibrate.h"
+#include "impedance2LCR.h"
 
 
 #include <stdio.h>
 #include <stdint.h>
+
+// WgAmpWord config
+typedef struct {
+    float requested_vpp;    // what you asked for
+    float actual_vpp;       // what the hardware will generate
+    uint16_t WgAmpWord;     // DAC word (0–2047)
+    uint8_t ExcitBuffGain;  // excitation buffer gain
+    uint8_t HsDacGain;      // DAC atten
+} ExcitConfig;
 
 float decode_fifo_word(uint32_t w)
 {
@@ -93,61 +103,65 @@ fImpCar_Type computeImpedanceFromFifo(AppBiaCfg_Type *pBiaCfg, uint32_t *const p
     return Zdut;
 }
 
+ExcitConfig compute_excit_config(float desired_vpp)
+{
+    ExcitConfig cfg;
+    cfg.requested_vpp = desired_vpp;
 
+    float full_scale = 0;
+    float inamp_gain = 1.0f;
+    float atten      = 1.0f;
 
-int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
-		     void *pResult)
+    if (desired_vpp <= 800 * 0.05f) {
+        cfg.ExcitBuffGain = EXCITBUFGAIN_0P25; inamp_gain = 0.25f;
+        cfg.HsDacGain     = HSDACGAIN_0P2;     atten      = 0.2f;
+        full_scale        = 40.0f;   // mVpp
+    } else if (desired_vpp <= 800 * 0.25f) {
+        cfg.ExcitBuffGain = EXCITBUFGAIN_0P25; inamp_gain = 0.25f;
+        cfg.HsDacGain     = HSDACGAIN_1;       atten      = 1.0f;
+        full_scale        = 200.0f;  // mVpp
+    } else if (desired_vpp <= 800 * 0.4f) {
+        cfg.ExcitBuffGain = EXCITBUFGAIN_2;    inamp_gain = 2.0f;
+        cfg.HsDacGain     = HSDACGAIN_0P2;     atten      = 0.2f;
+        full_scale        = 320.0f;  // mVpp
+    } else {
+        cfg.ExcitBuffGain = EXCITBUFGAIN_2;    inamp_gain = 2.0f;
+        cfg.HsDacGain     = HSDACGAIN_1;       atten      = 1.0f;
+        full_scale        = 1600.0f; // mVpp
+    }
+
+    // Compute WG amplitude register value
+    cfg.WgAmpWord = ((uint32_t)(desired_vpp / full_scale * 2047 * 2) + 1) >> 1;
+    if (cfg.WgAmpWord > 0x7FF)
+        cfg.WgAmpWord = 0x7FF;
+
+    // Back-calculate actual achievable Vpp
+    cfg.actual_vpp = (cfg.WgAmpWord / 2047.0f) * 0.8088f * inamp_gain * atten * 1000.0f; 
+    // in mV → multiply by 1000 converts to mV
+
+    return cfg;
+}
+
+int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_Type *AppBiaCfg,
+        ImpedanceDataPoint *res)
 {
 	int ret;
 	AFERefCfg_Type aferef_cfg;
 	HSLoopCfg_Type hs_loop;
 	DSPCfg_Type dsp_cfg;
 	bool bADCClk32MHzMode = false;
-	uint32_t ExcitBuffGain = EXCITBUFGAIN_2;
-	uint32_t HsDacGain = HSDACGAIN_1;
-
-	float ExcitVolt; /* Excitation voltage, unit is mV */
-	uint32_t RtiaVal;
-	static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
-	uint32_t WgAmpWord;
-    float RcalVal = pCalCfg->fRcal;
-    //fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
 	fImpCar_Type DftVdut, DftVtia;
     uint32_t regVal;
 
-	if (pCalCfg == NULL) return -EINVAL;
-	if (pCalCfg->fRcal == 0)
-		return -EINVAL;
-	if (pCalCfg->HsTiaCfg.HstiaRtiaSel > HSTIARTIA_160K)
-		return -EINVAL;
-	if (pCalCfg->HsTiaCfg.HstiaRtiaSel == HSTIARTIA_OPEN)
-		return -EINVAL; /* Do not support calibrating DE0-RTIA */
-	if (pResult == NULL)
-		return -EINVAL;
-
 	if (pCalCfg->AdcClkFreq > (32000000 * 0.8))
 		bADCClk32MHzMode = true;
 
-	/* Calculate the excitation voltage we should use based on RCAL/Rtia */
-	RtiaVal = HpRtiaTable[pCalCfg->HsTiaCfg.HstiaRtiaSel];
-	ExcitBuffGain = EXCITBUFGAIN_2;
-	HsDacGain = HSDACGAIN_1;
-	/* Excitation buffer voltage full range is 800mVpp*2=1600mVpp */
-	ExcitVolt = 1800 * 0.8;
-	WgAmpWord = ((uint32_t)(ExcitVolt / 1600 * 2047 * 2) + 1)
-			    >> 1; /* Assign value with rounding (0.5 LSB error) */
-	if (WgAmpWord > 0x7ff)
-		WgAmpWord = 0x7ff;
+	/* Calculate the excitation voltage we should use based on setting */
+    ExcitConfig excit_config = compute_excit_config(AppBiaCfg->DesiredVoltage);
 
-    ExcitVolt = 2300 * 0.8 * RcalVal / RtiaVal; 
-    ExcitBuffGain = EXCITBUFGAIN_0P25;
-    HsDacGain = HSDACGAIN_0P2;
-    WgAmpWord = ((uint32_t)(ExcitVolt / 40 * 2047 * 2) + 1)
-                >> 1; 
-
-    printf("%s: using RcalVal=%.0f RtiaVal=%lu ExcitVolt=%f WgAmpWord=%lu\r\n", 
-            __FUNCTION__, RcalVal, RtiaVal, ExcitVolt, WgAmpWord);
+    printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
+            __FUNCTION__, excit_config.requested_vpp, excit_config.actual_vpp);
 
 	ret = ad5940_AFECtrlS(dev, AFECTRL_ALL, false);  /* Init all to disable state */
 	if (ret < 0)
@@ -171,8 +185,8 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 		return ret;
 
 	/* Configure HP Loop */
-	hs_loop.HsDacCfg.ExcitBufGain = ExcitBuffGain;
-	hs_loop.HsDacCfg.HsDacGain = HsDacGain;
+	hs_loop.HsDacCfg.ExcitBufGain = excit_config.ExcitBuffGain;
+	hs_loop.HsDacCfg.HsDacGain = excit_config.HsDacGain;
 	hs_loop.HsDacCfg.HsDacUpdateRate = 7; /* Set it to highest update rate */
 	memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
     /* 
@@ -186,16 +200,13 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
     // measure DUT
     //
 
-    
-     
-    hs_loop.SWMatCfg.Dswitch = SWD_CE0; // S+
-    hs_loop.SWMatCfg.Pswitch = SWP_CE0; // F+
+    /*
     // RLOAD02 and RLOAD04 are fixed 100 Ω for SE0 and AFE3.
     hs_loop.SWMatCfg.Nswitch = SWN_SE0LOAD; // F-
     hs_loop.SWMatCfg.Tswitch = SWT_SE0LOAD | SWT_TRTIA;  // S-
+    */
 
-    
-    // use alternative x->y connection scheme to     
+    // use alternative x->y connection scheme in set_mux
     hs_loop.SWMatCfg.Dswitch = SWD_CE0; // S+
     hs_loop.SWMatCfg.Pswitch = SWP_CE0; // F+
     hs_loop.SWMatCfg.Nswitch = SWN_AIN1; // F-
@@ -207,7 +218,7 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
 	hs_loop.WgCfg.OffsetCalEn = false;
 	hs_loop.WgCfg.SinCfg.SinFreqWord = ad5940_WGFreqWordCal(pCalCfg->fFreq,
 					   pCalCfg->SysClkFreq);
-	hs_loop.WgCfg.SinCfg.SinAmplitudeWord = WgAmpWord;
+	hs_loop.WgCfg.SinCfg.SinAmplitudeWord = excit_config.WgAmpWord;
 	hs_loop.WgCfg.SinCfg.SinOffsetWord = 0;
 	hs_loop.WgCfg.SinCfg.SinPhaseWord = 0;
 	ret = ad5940_HSLoopCfgS(dev, &hs_loop);
@@ -348,6 +359,8 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg,
         DftIdut.Real, DftIdut.Image
     );
 
+    res->freq = pCalCfg->fFreq;
+    res->Z = Zdut;
 
     return 0;
 }

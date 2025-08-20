@@ -77,6 +77,15 @@ struct no_os_uart_desc *uart;
 extern UART_HandleTypeDef huart5;
 #endif
 
+#include <ADuCM3029.h>
+void aducm3029_software_reset(void)
+{
+    // Write to System Control Block AIRCR register to request reset
+    SCB->AIRCR = 0x05FA0004;  // VECTKEY + SYSRESETREQ
+    __DSB();                  // ensure all memory accesses complete
+    while(1);                 // wait until reset occurs
+}
+
 void ad5940_int_callback(void *ctx)
 {
 	ucInterrupted = 1;
@@ -333,6 +342,7 @@ int main(void)
 	return iio_app_run(app);
 #endif
 
+    //aducm3029_software_reset();
 	printf("Bye!\r\n");
 	return 0;
 error:

@@ -38,6 +38,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+
+#include "impedance2LCR.h"
 #include "ad5940.h"
 
 #define MAXSWEEP_POINTS 100 /* Need to know how much buffer is needed to save RTIA calibration result */
@@ -94,6 +96,7 @@ typedef struct {
 	SEQInfo_Type MeasureSeqInfo;
 	bool StopRequired;  /* After FIFO is ready, stop the measurment sequence */
 	uint32_t FifoDataCount; /* Count how many times impedance have been measured */
+  float DesiredVoltage; /* target for DUT pp */
 	/* End */
 } AppBiaCfg_Type;
 
@@ -105,6 +108,7 @@ typedef struct {
 
 int AppBiaGetCfg(void *pCfg);
 int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t nBufferSize);
+int AppBiaRdutRun(struct ad5940_dev *dev, ImpedanceDataPoint *res);
 int AppBiaISR(struct ad5940_dev *dev, void *pBuff, uint32_t *pCountd);
 int AppBiaCtrl(struct ad5940_dev *dev, int32_t BcmCtrl, void *pPara);
 void signExtend18To32(uint32_t *const pData, uint16_t nLen);

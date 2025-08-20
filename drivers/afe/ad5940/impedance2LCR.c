@@ -19,9 +19,9 @@ static int compare_freq(const void *a, const void *b)
 {
     ImpedanceDataPoint *p1 = (ImpedanceDataPoint *)a;
     ImpedanceDataPoint *p2 = (ImpedanceDataPoint *)b;
-    if (p1->frequency < p2->frequency)
+    if (p1->freq < p2->freq)
         return -1;
-    if (p1->frequency > p2->frequency)
+    if (p1->freq > p2->freq)
         return 1;
     return 0;
 }
@@ -91,13 +91,13 @@ LCR_Result lcr_from_impedance(ImpedanceDataPoint data[], int num_points)
 
     for (int i = 0; i < num_points; i++)
     {
-        omegas[i] = 2 * M_PI * data[i].frequency;
+        omegas[i] = 2 * M_PI * data[i].freq;
         fImpCar_Type one = {1.0, 0.0};
-        admittances[i] = ad5940_ComplexDivFloat(&one, &data[i].impedance);
+        admittances[i] = ad5940_ComplexDivFloat(&one, &data[i].Z);
     }
 
     // --- Initial Guess Calculation ---
-    fImpCar_Type low_freq_z = data[0].impedance;
+    fImpCar_Type low_freq_z = data[0].Z;
     double low_omega = omegas[0];
     fImpCar_Type high_freq_y = admittances[num_points - 1];
     double high_omega = omegas[num_points - 1];

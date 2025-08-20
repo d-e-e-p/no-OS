@@ -35,6 +35,7 @@
 #include "bia_measurement.h"
 #include "calibrate.h"
 #include "measure.h"
+#include "impedance2LCR.h"
 #include "app.h"
 
 /* Initial AD5940 settings */
@@ -392,8 +393,8 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
         //  Excitation Buffer (P-node) → AIN1 → DUT → AIN0 → TIA
         sw_cfg.Dswitch = SWD_CE0; //  S+
         sw_cfg.Pswitch = SWP_CE0; //  F+
-        sw_cfg.Nswitch = SWN_SE0LOAD; //  F-
-        sw_cfg.Tswitch = SWT_SE0LOAD | SWT_TRTIA; // S-
+        sw_cfg.Nswitch = SWN_AIN1; //  F-
+        sw_cfg.Tswitch = SWT_AIN1 | SWT_TRTIA; // S-
     } else {
         //  Excitation Buffer (P-node) → CE0 → DUT → AIN0 → TIA
         sw_cfg.Dswitch = SWD_CE0; // CE0 is the counter electrode pin.
@@ -509,6 +510,31 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
 				  SeqLen);
 }
 
+int AppBiaRdutRun(struct ad5940_dev *dev, ImpedanceDataPoint *res)
+{
+	HSRTIACal_Type hsrtia_cal;
+
+	hsrtia_cal.AdcClkFreq = AppBiaCfg.AdcClkFreq;
+	hsrtia_cal.ADCSinc2Osr = AppBiaCfg.ADCSinc2Osr;
+	hsrtia_cal.ADCSinc3Osr = AppBiaCfg.ADCSinc3Osr;
+	hsrtia_cal.bPolarResult = false; /* We need Real and Imag here */
+	hsrtia_cal.DftCfg.DftNum = AppBiaCfg.DftNum;
+	hsrtia_cal.DftCfg.DftSrc = AppBiaCfg.DftSrc;
+	hsrtia_cal.DftCfg.HanWinEn = AppBiaCfg.HanWinEn;
+	hsrtia_cal.fRcal = AppBiaCfg.RcalVal;
+	hsrtia_cal.HsTiaCfg.DiodeClose = false;
+	hsrtia_cal.HsTiaCfg.HstiaBias = HSTIABIAS_1P1;
+	hsrtia_cal.HsTiaCfg.HstiaCtia = AppBiaCfg.CtiaSel;
+	hsrtia_cal.HsTiaCfg.HstiaDeRload = HSTIADERLOAD_OPEN;
+	hsrtia_cal.HsTiaCfg.HstiaDeRtia = HSTIADERTIA_TODE;
+	hsrtia_cal.HsTiaCfg.HstiaRtiaSel = AppBiaCfg.HstiaRtiaSel;
+	hsrtia_cal.SysClkFreq = AppBiaCfg.SysClkFreq;
+	hsrtia_cal.fFreq = AppBiaCfg.SinFreq;
+
+	return ad5940_MeasureDUT(dev, &hsrtia_cal, &AppBiaCfg, res);
+}
+
+
 static int AppBiaRtiaCal(struct ad5940_dev *dev)
 {
 	int ret;
@@ -557,10 +583,6 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 		ret = ad5940_HSRtiaCal(dev, &hsrtia_cal, AppBiaCfg.RtiaCurrValue);
 		if (ret < 0)
 			return ret;
-		ret = ad5940_MeasureDUT(dev, &hsrtia_cal, AppBiaCfg.RtiaCurrValue);
-		if (ret < 0)
-			return ret;
-
 	}
 	return 0;
 }

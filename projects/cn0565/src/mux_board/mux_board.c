@@ -138,15 +138,15 @@ void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *ad5940,
             i2c_addr = board_map[curr_el].chip_addr;
             muxData[0] = board_map[curr_el].selector + ypin[node];
 
-            printf("[DEBUG] Node=%d Y=%u -> electrode %u (curr_el=%u) i2c_addr=0x%02X selector=0x%02X\n",
-                      node, ypin[node], curr_el, curr_el, i2c_addr, muxData[0]);
+            //printf("[DEBUG] Node=%d Y=%u -> electrode %u (curr_el=%u) i2c_addr=0x%02X selector=0x%02X\r\n",
+            //          node, ypin[node], curr_el, curr_el, i2c_addr, muxData[0]);
 
             i2c->slave_address = i2c_addr;
             if (no_os_i2c_write(i2c, muxData, sizeof(muxData), true) != 0) {
-                printf("[ERROR] I2C write failed for addr 0x%02X\n", i2c_addr);
+                printf("[ERROR] I2C write failed for addr 0x%02X\r\n", i2c_addr);
             }
         } else {
-            printf("[WARN] Node=%d Y=%u electrode index %u out of range (max=%zu)\n",
+            printf("[WARN] Node=%d Y=%u electrode index %u out of range (max=%zu)\r\n",
                    node, ypin[node], curr_el, total_electrodes - 1);
         }
     }

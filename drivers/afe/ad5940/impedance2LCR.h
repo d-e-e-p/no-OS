@@ -18,8 +18,8 @@
  */
 typedef struct
 {
-    float frequency;
-    fImpCar_Type impedance;
+    float freq;
+    fImpCar_Type Z;
 } ImpedanceDataPoint;
 
 
