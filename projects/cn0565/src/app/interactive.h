@@ -40,12 +40,6 @@
 #include "ad5940.h"
 #include "no_os_uart.h"
 
-void interactive_mode(struct no_os_i2c_desc *i2c,
-		      struct ad5940_dev *ad5940,
-		      struct no_os_uart_desc *uart,
-		      struct eit_config oldEitCfg,
-		      struct measurement_config oldMeasCfg,
-		      struct electrode_combo oldElCfg,
-		      uint16_t switchSeqCnt);
+void interactive_mode();
 
 #endif /* INTERACTIVE_H_ */

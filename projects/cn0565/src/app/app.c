@@ -81,86 +81,6 @@ uint32_t ClrMCUIntFlag(void)
     return 1;
 }
 
-void configMeasurement(struct measurement_config *oldCfg,
-               struct measurement_config newCfg)
-{
-    AppBiaCfg_Type *pBiaCfg;
-    AppBiaGetCfg(&pBiaCfg);
-    if (oldCfg->nFrequency != newCfg.nFrequency) {
-        pBiaCfg->bParamsChanged = true;
-        oldCfg->nFrequency = newCfg.nFrequency;
-        pBiaCfg->SinFreq = ((float)(newCfg.nFrequency)) * 1000.0;
-    }
-
-    if (oldCfg->nAmplitudePP != newCfg.nAmplitudePP) {
-        pBiaCfg->bParamsChanged = true;
-        oldCfg->nAmplitudePP = newCfg.nAmplitudePP;
-        pBiaCfg->DacVoltPP = newCfg.nAmplitudePP * 1.0;
-    }
-    pBiaCfg->bImpedanceReadMode = newCfg.bImpedanceReadMode;
-    pBiaCfg->SweepCfg.SweepEn = newCfg.bSweepEn;
-    if (newCfg.bImpedanceReadMode) { // Impedance mode
-        pBiaCfg->FifoThresh = 4;
-    } else {
-        pBiaCfg->FifoThresh = 2;
-    }
-    // Set newCfg as old for next command execution;
-    *oldCfg = newCfg;
-}
-
-void SendResultUint32(uint32_t *pData, uint32_t nDataCount)
-{
-    uint32_t i;
-
-    for (i = 0; i < nDataCount - 1; i++) {
-        printf("%lx,", pData[i]);
-    }
-
-    printf("%lx", pData[i]);
-}
-
-void SendResultIeee754(float *data, uint32_t DataCount)
-{
-
-    uint32_t *pVal = (uint32_t *)((void *)data);
-    uint32_t i;
-
-    for (i = 0; i < DataCount - 1; i++) {
-        printf("%lx,", pVal[i]);
-    }
-
-    printf("%lx", pVal[i]);
-}
-
-
-void SendResult(uint32_t *pData, uint16_t len,
-        bool bImpedanceReadMode, bool bMagnitudeMode)
-{
-    float fMagVal = 0;
-    fImpCar_Type fCarZval;
-    iImpCar_Type iCarVval;
-    signExtend18To32(pData, len);
-
-    if (bImpedanceReadMode && (len == 4)) { // Send Impedance
-        fCarZval = computeImpedance(pData);
-        if (bMagnitudeMode) { // Complex to Magnitude
-            fMagVal = sqrt(fCarZval.Real * fCarZval.Real +
-                           fCarZval.Image * fCarZval.Image);
-            SendResultIeee754(&fMagVal, 1); // Impedance Magnitude only. Float
-        } else { // Complex Impedance in IEE754 uint32 hex string.
-            SendResultIeee754((float *)&fCarZval, 2);
-        }
-    } else if ((!bImpedanceReadMode) && (len == 2)) { // Send Voltage
-        if (bMagnitudeMode) { // Complex to Magnitude
-            iCarVval = *((iImpCar_Type *)pData);
-            fMagVal = sqrt((iCarVval.Real * 1.0) * (iCarVval.Real * 1.0) +
-                           (iCarVval.Image * 1.0) * (iCarVval.Image * 1.0));
-            SendResultIeee754(&fMagVal, 1); // Voltage Magnitude only. Float
-        } else { // Complex Voltage in uint32 hex string.
-            SendResultUint32(pData, 2);
-        }
-    }
-}
 
 void print_int_array(const char *name, uint8_t *arr, size_t n) {
     printf("%s = { ", name);
@@ -250,6 +170,8 @@ void AD5940BiaStructInit(void)
     } else {
         pBiaCfg->FifoThresh = 2;
     }
+
+
 }
 
 void print_float_array(const char *name, float *arr, size_t n) {
@@ -282,20 +204,9 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     printf("%s: OK\r\n", __FUNCTION__);
     AD5940BiaStructInit(); /* Configure run parameters */
 
-    //uint32_t fifocnt = 0;
-    //uint32_t readbuf[APPBUFF_SIZE]; // Ensure APPBUFF_SIZE >= seq_expected_samples
+    // define switch config
+    define_switch_config(&pBiaCfg);
     
-    /*
-    SWMatrixCfg_Type sw_cfg;
-    sw_cfg.Dswitch = SWD_RCAL0; // S+
-    sw_cfg.Pswitch = SWP_RCAL0; // F+
-    sw_cfg.Nswitch = SWN_RCAL1; // F-
-    sw_cfg.Tswitch = SWT_RCAL1 | SWT_TRTIA; // S-
-    ret = ad5940_SWMatrixCfgS(ad5940, &sw_cfg);
-    if (ret < 0)
-        return ret;
-    */
-
     uint8_t seq[] = {10, 11, 9};
     size_t num_seq = sizeof(seq)/sizeof(seq[0]);
     generateSwitchCombination(swComboSeq, num_seq, seq);
@@ -303,7 +214,6 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     print_int_array("seq_list", seq, num_seq);
 
 
-    // run initial meas before going into interactive mode
     // step1 : setup sequence
     float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
     //float freq_list[] = {200, };
@@ -366,8 +276,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
 
     // OK, now go into interactive mode
-    //struct measurement_config oldMeasCfg;
-    //interactive_mode(i2c, ad5940, uart, oldEitCfg, oldMeasCfg, oldElCfg, num_seq);
+    interactive_mode();
 
     return 0;
 }

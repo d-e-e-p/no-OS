@@ -138,8 +138,7 @@ ExcitConfig compute_excit_config(float desired_vpp)
     return cfg;
 }
 
-int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_Type *AppBiaCfg,
-        ImpedanceDataPoint *res)
+int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, ImpedanceDataPoint *res)
 {
 	int ret;
 	AFERefCfg_Type aferef_cfg;
@@ -149,6 +148,9 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg
 
 	fImpCar_Type DftVdut, DftVtia;
     uint32_t regVal;
+
+    AppBiaCfg_Type *pBiaCfg;
+    AppBiaGetCfg(&pBiaCfg);
 
 	if (pCalCfg->AdcClkFreq > (32000000 * 0.8))
 		bADCClk32MHzMode = true;
@@ -184,32 +186,15 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg
 	hs_loop.HsDacCfg.HsDacGain = excit_config.HsDacGain;
 	hs_loop.HsDacCfg.HsDacUpdateRate = 7; /* Set it to highest update rate */
 	memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
-    /* 
-    // orig rcal measure
-	hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
-	hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
-	hs_loop.SWMatCfg.Nswitch = SWN_RCAL1;
-	hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_TRTIA;
-    */
 
-    // measure DUT
-    //
-
-    /*
-    // RLOAD02 and RLOAD04 are fixed 100 Ω for SE0 and AFE3.
-    hs_loop.SWMatCfg.Nswitch = SWN_SE0LOAD; // F-
-    hs_loop.SWMatCfg.Tswitch = SWT_SE0LOAD | SWT_TRTIA;  // S-
-    */
-
-    // use alternative x->y connection scheme in set_mux
-    hs_loop.SWMatCfg.Dswitch = SWD_CE0; // S+
-    hs_loop.SWMatCfg.Pswitch = SWP_CE0; // F+
-    hs_loop.SWMatCfg.Nswitch = SWN_AIN1; // F-
-    hs_loop.SWMatCfg.Tswitch = SWT_AIN1 | SWT_TRTIA;  // S-
+    // 
+    hs_loop.SWMatCfg.Dswitch = pBiaCfg->Dswitch; // S+
+    hs_loop.SWMatCfg.Pswitch = pBiaCfg->Pswitch; // F+
+    hs_loop.SWMatCfg.Nswitch = pBiaCfg->Nswitch; // F-
+    hs_loop.SWMatCfg.Tswitch = pBiaCfg->Tswitch; // S-
                                                         
 	hs_loop.WgCfg.WgType = WGTYPE_SIN;
-	hs_loop.WgCfg.GainCalEn =
-		false;      /* @todo. If we have factory calibration data, enable it */
+	hs_loop.WgCfg.GainCalEn = false;      /* @todo. If we have factory calibration data, enable it */
 	hs_loop.WgCfg.OffsetCalEn = false;
 	hs_loop.WgCfg.SinCfg.SinFreqWord = ad5940_WGFreqWordCal(pCalCfg->fFreq,
 					   pCalCfg->SysClkFreq);

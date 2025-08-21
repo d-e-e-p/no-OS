@@ -81,6 +81,12 @@ typedef struct {
   uint32_t HstiaDeRtia;
   uint32_t HstiaDeRload;
 
+  // switch config
+  uint32_t Dswitch; /**< Select from SWD_RCAL0, SWD_AIN0, ... */
+  uint32_t Pswitch;
+  uint32_t Nswitch;
+  uint32_t Tswitch;
+
 	uint32_t DftNum;   /* DFT number */
 	uint32_t DftSrc;   /* DFT Source */
 	bool HanWinEn; /* Enable Hanning window */

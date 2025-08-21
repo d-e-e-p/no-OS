@@ -211,16 +211,6 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
     ad5940_ReadAfeResult(dev, AFERESULT_DFTIMAGE, &regVal);
     Dcal.Image = decode_afe_result(regVal);
 
-    /*
-    hs_loop.SWMatCfg.Dswitch = SWD_OPEN;
-    hs_loop.SWMatCfg.Pswitch = SWP_PL | SWP_PL2;
-    hs_loop.SWMatCfg.Nswitch = SWN_NL | SWN_NL2;
-    hs_loop.SWMatCfg.Tswitch = SWT_TRTIA;
-	ret = ad5940_HSLoopCfgS(dev, &hs_loop);
-	if (ret < 0)
-		return ret;
-     */
-
 	ret = ad5940_ADCMuxCfgS(dev, ADCMUXP_HSTIA_P, ADCMUXN_HSTIA_N);
 	if (ret < 0)
 		return ret;

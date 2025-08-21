@@ -420,8 +420,8 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
             //sw_cfg.Nswitch = SWN_DE0LOAD;
             sw_cfg.Tswitch = SWT_DE0LOAD;
 
-            AppBiaCfg.HstiaDeRload = HSTIADERLOAD_0R,
-            AppBiaCfg.HstiaDeRtia = HSTIADERTIA_50,
+            AppBiaCfg.HstiaDeRload = HSTIADERLOAD_0R;
+            AppBiaCfg.HstiaDeRtia = HSTIADERTIA_50;
 
             break;
     }
