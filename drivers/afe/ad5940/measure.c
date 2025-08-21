@@ -66,10 +66,13 @@ fImpCar_Type computeImpedanceFromFifo(AppBiaCfg_Type *pBiaCfg, uint32_t *const p
     DftVtia.Image = -DftVtia.Image;
 
     // Step1: fetch Ztia 
+    /*
     fImpCar_Type Ztia = {
         .Real  = pBiaCfg->RtiaCurrValue[0],
         .Image = pBiaCfg->RtiaCurrValue[1]
     };
+    */
+    fImpCar_Type Ztia = pBiaCfg->ZtiaCalCurrValue;
 
     // Step2: compute current through DUT
     fImpCar_Type Idut = ad5940_ComplexDivFloat(&DftVtia, &Ztia);
@@ -152,8 +155,8 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg
 
 	/* Calculate the excitation voltage we should use based on setting */
     ExcitConfig excit_config = compute_excit_config(AppBiaCfg->DesiredVoltage);
-    printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
-            __FUNCTION__, excit_config.requested_vpp, excit_config.actual_vpp);
+    //printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
+    //        __FUNCTION__, excit_config.requested_vpp, excit_config.actual_vpp);
 
 	ret = ad5940_AFECtrlS(dev, AFECTRL_ALL, false);  /* Init all to disable state */
 	if (ret < 0)
@@ -322,13 +325,16 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg
     DftVdut.Real  = -DftVdut.Real;
     DftVdut.Image =  DftVdut.Image;
 
+    /*
     fImpCar_Type Ztia = {
         .Real  = AppBiaCfg->RtiaCurrValue[0],
         .Image = AppBiaCfg->RtiaCurrValue[1],
     };
+    */
+    fImpCar_Type Ztia = AppBiaCfg->ZtiaCalCurrValue;
 
-    printf("%s: dtia = %.2f + %.2f j\r\n", __FUNCTION__, DftVtia.Real, DftVtia.Image);
-    printf("%s: ddut = %.2f + %.2f j\r\n", __FUNCTION__, DftVdut.Real, DftVdut.Image);
+    //printf("%s: dtia = %.2f + %.2f j\r\n", __FUNCTION__, DftVtia.Real, DftVtia.Image);
+    //printf("%s: ddut = %.2f + %.2f j\r\n", __FUNCTION__, DftVdut.Real, DftVdut.Image);
 
     // Step2: compute current through DUT
     fImpCar_Type DftIdut = ad5940_ComplexDivFloat(&DftVtia, &Ztia);
@@ -336,20 +342,22 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg
     // Step3: compute impedance
     fImpCar_Type Zdut = ad5940_ComplexDivFloat(&DftVdut, &DftIdut);
 
-    printf(
-        "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
-        __FUNCTION__,
-        DftVtia.Real, DftVtia.Image,
-        Ztia.Real, Ztia.Image
-    );
+    if (false) {
+        printf(
+            "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
+            __FUNCTION__,
+            DftVtia.Real, DftVtia.Image,
+            Ztia.Real, Ztia.Image
+        );
 
-    printf(
-        "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
-        __FUNCTION__,
-        Zdut.Real, Zdut.Image,
-        DftVdut.Real, DftVdut.Image,
-        DftIdut.Real, DftIdut.Image
-    );
+        printf(
+            "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
+            __FUNCTION__,
+            Zdut.Real, Zdut.Image,
+            DftVdut.Real, DftVdut.Image,
+            DftIdut.Real, DftIdut.Image
+        );
+    }
 
     res->freq = pCalCfg->fFreq;
     res->Z = Zdut;

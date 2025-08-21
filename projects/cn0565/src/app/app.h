@@ -38,7 +38,7 @@
 #include "ad5940.h"
 #include "mux_board.h"
 
-#define APPBUFF_SIZE 1024
+#define APPBUFF_SIZE 256
 
 struct eit_config {
 	uint16_t nElectrodeCnt;
@@ -66,8 +66,6 @@ uint32_t  GetMCUIntFlag(void);
 uint32_t  ClrMCUIntFlag(void);
 void AD5940BiaStructInit(void);
 
-uint16_t generateSwitchCombination(struct eit_config eitCfg,
-				   struct electrode_combo *swSeq);
 
 void configMeasurement(struct measurement_config *oldCfg,
 		       struct measurement_config newCfg);

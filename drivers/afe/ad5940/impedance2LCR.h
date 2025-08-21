@@ -49,5 +49,44 @@ typedef struct
  */
 LCR_Result lcr_from_impedance(ImpedanceDataPoint data[], int num_points);
 
+void dump_ztia_csv(size_t switchSeqCnt,
+                       size_t num_volt,
+                       size_t num_freq,
+                       const float desired_vpp[num_volt],
+                       const float freq_list[num_freq],
+                       const fImpCar_Type Ztia[num_volt][num_freq],
+                       fImpCar_Type ZtiaAve[num_volt]);
+
+void dump_zdut_csv(size_t switchSeqCnt,
+                       size_t num_volt,
+                       size_t num_freq,
+                       const float desired_vpp[num_volt],
+                       const float freq_list[num_freq],
+                       const ImpedanceDataPoint resZ[switchSeqCnt][num_volt][num_freq]);
+
+void dump_zdut_csv(size_t switchSeqCnt,
+                       size_t num_volt,
+                       size_t num_freq,
+                       const float desired_vpp[num_volt],
+                       const float freq_list[num_freq],
+                       const ImpedanceDataPoint resZ[switchSeqCnt][num_volt][num_freq]);
+
+void dump_lcr_box(size_t switchSeqCnt,
+                       size_t num_volt,
+                       const fImpCar_Type ZtiaAve[num_volt],
+                       const float desired_vpp[num_volt],
+                       LCR_Result resLCR[switchSeqCnt][num_volt]);
+
+void dump_raw_lcr_csv(size_t switchSeqCnt,
+                       size_t num_volt,
+                       const fImpCar_Type ZtiaAve[num_volt],
+                       const float desired_vpp[num_volt],
+                       LCR_Result resLCR[switchSeqCnt][num_volt]);
+
+void dump_fit_lcr_csv(size_t switchSeqCnt,
+                       size_t num_volt,
+                       const fImpCar_Type ZtiaAve[num_volt],
+                       const float desired_vpp[num_volt],
+                       LCR_Result resLCR[switchSeqCnt][num_volt]);
 
 #endif /* IMPEDANCE2LCR_H_ */

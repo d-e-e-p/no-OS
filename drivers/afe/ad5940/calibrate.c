@@ -75,8 +75,9 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 	DSPCfg_Type dsp_cfg;
 	bool bADCClk32MHzMode = false;
 
-	uint32_t RtiaVal;
+	//uint32_t RtiaVal;
 	static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
+    printf("%s: Rtia = %ld\r\n", __FUNCTION__, HpRtiaTable[AppBiaCfg->HstiaRtiaSel]);
     float RcalVal = pCalCfg->fRcal;
     fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
@@ -278,8 +279,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
     fImpCar_Type ZtiaVal  = ad5940_ComplexMulFloat(&Zratio, &ZcalVal);
 
     /* --- Debug prints: show signed integers for raw values --- */
-    printf("dtia = %.2f + %.2f j\r\n", Dtia.Real, Dtia.Image);
-    printf("dcal = %.2f + %.2f j\r\n", Dcal.Real, Dcal.Image);
+    //printf("dtia = %.2f + %.2f j\r\n", Dtia.Real, Dtia.Image);
+    //printf("dcal = %.2f + %.2f j\r\n", Dcal.Real, Dcal.Image);
 
     printf("  DEBUG Zratio (%.0f + %.0f j) = Dtia (%.0f + %.0f j) / Dcal (%.0f + %.0f j)\r\n",
            Zratio.Real, Zratio.Image,
@@ -293,6 +294,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 
     if (pCalCfg->bPolarResult == false) {
         *((fImpCar_Type*)pResult) = ZtiaVal;
+        AppBiaCfg->ZtiaCalCurrValue = ZtiaVal;
 
     } else {
         float ZtiaValMag   = ad5940_ComplexMag(&ZtiaVal);

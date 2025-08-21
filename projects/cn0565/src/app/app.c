@@ -51,7 +51,6 @@
 extern struct no_os_uart_desc *uart;
 
 uint32_t AppBuff[APPBUFF_SIZE];
-struct electrode_combo swComboSeq[MUXBOARD_SIZE]; // TODO review when nElCount is 32
 
 float SinFreqVal = 0.0;
 unsigned int SinFreqValUINT = 0;
@@ -163,7 +162,7 @@ void SendResult(uint32_t *pData, uint16_t len,
     }
 }
 
-void print_int_array(const char *name, int *arr, size_t n) {
+void print_int_array(const char *name, uint8_t *arr, size_t n) {
     printf("%s = { ", name);
     for (size_t i = 0; i < n; i++) {
         printf("%d", arr[i]);
@@ -172,38 +171,43 @@ void print_int_array(const char *name, int *arr, size_t n) {
     printf(" }\r\n");
 }
 
-// switch combination setup that allows independent measurement of each up-down connector pair 
-// in Left to right order, instead of default 0x70, 0x71, swapped order
-uint16_t generateSwitchCombination(struct eit_config eitCfg, struct electrode_combo *swSeq)
+
+
+/**
+ * Generate switch combinations from a given sequence array.
+ * see projects/cn0565/src/mux_board/mux_board.c for sequence, was originally weird
+ * switch combination setup that allows independent measurement of each up-down connector pair 
+ * in Left to right order, instead of default 0x70, 0x71, swapped order
+ *
+ * @param swSeq   Output array of electrode_combo structs
+ * @param seq     Input sequence array (e.g. {1,10,11,9})
+ * @param num_seq  Length of seq[]
+ * @return        Number of generated combos (== num_seq)
+ * eg:
+ *  uint8_t seq[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+ */
+void generateSwitchCombination(struct electrode_combo *swSeq,
+                                 size_t num_seq,
+                                 uint8_t seq[num_seq])
 {
-    uint8_t plus;
-    uint8_t minus;
+    print_int_array("seq_list", seq, num_seq);
+    for (size_t seqCtr = 0; seqCtr < num_seq; seqCtr++) {
 
-    uint16_t seqCtr = 0;
-    uint8_t electrode;
+        // each electrode has 2 pins, so jump by 2
+        uint8_t electrode = seq[seqCtr] * 2;
 
-    // see projects/cn0565/src/mux_board/mux_board.c for sequence, was originally weird
-    //uint8_t seq[] = {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22};
-    int seq[] = {20, 22};
-    size_t numSeq = sizeof(seq)/sizeof(seq[0]);
-    print_int_array("seq_list", seq, numSeq);
-    for (seqCtr = 0; seqCtr < numSeq; seqCtr++) {
-        electrode = seq[seqCtr];
+        uint8_t plus  = electrode;
+        uint8_t minus = electrode + 1;
 
-        plus = electrode;
-        minus = electrode + 1;
-
-        swSeq[seqCtr].F_plus = plus;
+        swSeq[seqCtr].F_plus  = plus;
         swSeq[seqCtr].F_minus = minus;
-        swSeq[seqCtr].S_plus = plus;
+        swSeq[seqCtr].S_plus  = plus;
         swSeq[seqCtr].S_minus = minus;
-        //printf("seqCtr %d: plus=%d minus=%d \r\n",seqCtr, plus, minus);
 
-      }
+        //printf("seqCtr %zu: plus=%u minus=%u\r\n", seqCtr, plus, minus);
+    }
 
-    return seqCtr;
 }
-
 
 /* !!Change the application parameters here if you want to change it to
  * none-default value */
@@ -218,8 +222,8 @@ void AD5940BiaStructInit(void)
 
     //pBiaCfg->RcalVal = 1000.0; //Note: RCAL value should be similar to RTIA so the accuracy is best.
     pBiaCfg->RcalVal = 10.0; //Note: RCAL value should be similar to RTIA so the accuracy is best.
-    pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
-    //pBiaCfg->HstiaRtiaSel = HSTIARTIA_1K; 
+    //pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
+    pBiaCfg->HstiaRtiaSel = HSTIARTIA_1K; 
                               
                                
     pBiaCfg->DftNum = DFTNUM_8192;
@@ -261,15 +265,14 @@ void print_float_array(const char *name, float *arr, size_t n) {
 int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 {
     int ret;
-    struct eit_config oldEitCfg;
-    struct electrode_combo oldElCfg;
+    //struct eit_config oldEitCfg;
+    //struct electrode_combo oldElCfg;
+    struct electrode_combo swComboSeq[MUXBOARD_SIZE]; // TODO review when nElCount is 32
+    uint16_t switchSeqNum = 0;
 
     AppBiaCfg_Type *pBiaCfg;
     AppBiaGetCfg(&pBiaCfg);
 
-
-    uint16_t switchSeqCnt;
-    uint16_t switchSeqNum = 0;
 
     struct ad5940_dev *ad5940;
     ret = ad5940_init(&ad5940, ad5940_ip);
@@ -293,33 +296,43 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
         return ret;
     */
 
-    switchSeqCnt = generateSwitchCombination(oldEitCfg, swComboSeq);
+    uint8_t seq[] = {10, 11, 9};
+    size_t num_seq = sizeof(seq)/sizeof(seq[0]);
+    generateSwitchCombination(swComboSeq, num_seq, seq);
     setMuxSwitch(i2c, ad5940, swComboSeq[0]);
+    print_int_array("seq_list", seq, num_seq);
+
 
     // run initial meas before going into interactive mode
     // step1 : setup sequence
-    float freq_list[] = {100, 200, 500, 1000};
+    float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
+    //float freq_list[] = {200, };
     size_t num_freq = sizeof(freq_list) / sizeof(freq_list[0]);
     print_float_array("freq_list", freq_list, num_freq);
 
-    float desired_vpp[] = {20, 100, 200, 500, 1000, 2000};
+    //float desired_vpp[] = {10, 20, 50, 100, 200, 500, 1000, 2000 };
+    //float desired_vpp[] = {10, 15, 20, 25, 30, 35, 40};
+    float desired_vpp[] = {10, 15, 20};
     size_t num_volt = sizeof(desired_vpp)/sizeof(desired_vpp[0]);
     print_float_array("desired_vpp", desired_vpp, num_volt);
 
-    ImpedanceDataPoint resZ[switchSeqCnt][num_volt][num_freq];   // hold Z results 
-    LCR_Result resLCR[switchSeqCnt][num_volt];   // hold LCR results 
+    ImpedanceDataPoint resZ[num_seq][num_volt][num_freq];   // hold Z results 
+    LCR_Result resLCR[num_seq][num_volt];   // hold LCR results 
+                                                 //
+    fImpCar_Type Ztia[num_volt][num_freq];
     printf("%s : init \r\n", __FUNCTION__);
                                                         
     for (size_t i = 0; i < num_volt; i++) {
         pBiaCfg->DesiredVoltage = desired_vpp[i];
         printf("%s: desired_vpp voltage[%d] = %f\r\n", __FUNCTION__, i, desired_vpp[i]);
         for (size_t j = 0; j < num_freq; j++) {
-            printf("freq_list[%d] = %.0f Hz\r\n", j, freq_list[j]);
             pBiaCfg->SinFreq = freq_list[j];
             pBiaCfg->bParamsChanged = true;
             AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
-            for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
-                printf("%s:----------------------- exp switch %d \r\n", __FUNCTION__, switchSeqNum);
+            Ztia[i][j] = pBiaCfg->ZtiaCalCurrValue;
+            for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
+                printf("%s:═══════════════════════ experiment %d probe  %.0f mV %.0f Hz \r\n",
+                        __FUNCTION__, switchSeqNum, desired_vpp[i], freq_list[j] );
                 setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum]);
                 AppBiaRdutRun(ad5940, &resZ[switchSeqNum][i][j]);
             }
@@ -329,57 +342,32 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
         printf("\r\n--- LCR Fitting Results ---\r\n");
 
-        for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
+        for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
             LCR_Result result = lcr_from_impedance(resZ[switchSeqNum][i], num_freq);
             resLCR[switchSeqNum][i] = result;
             if (!isnan(result.L)) {
-                printf("seq: %d volt=%.1f V L = %.3g mH C = %.3g µF R=%.3g Ω err=%.2g \r\n", 
+                printf("seq: %d volt=%.0f mV  L = %.3g mH  C = %.3g fF  R=%.3g   Ω err=%.2g\r\n", 
                         switchSeqNum, desired_vpp[i], 
-                        result.L * 1e3, result.C * 1e6, result.R, result.fit_error * 1e3);
+                        result.L * 1e3, result.C * 1e15, result.R, result.fit_error * 1e3);
             } else {
                 printf("seq: %d LCR Fitting failed.\r\n", switchSeqNum);
             }
         }
     }
 
-    printf("╔═════════════════════════════════════════╗\r\n");
-    printf("║            LCR Fitting Results          ║\r\n");
-    printf("╠══╤═════════╤═════════╤═══════════╤══════╣\r\n");
-    printf("║S │     L   │    C    │    R      │  vol ║\r\n");
-    printf("║  │   (mH)  │   (µF)  │   (Ω)     │      ║\r\n");
-    printf("╠══╪═════════╪═════════╪═══════════╪══════╣\r\n");
 
-    for (size_t i = 0; i < num_volt; i++) {
-        for (switchSeqNum = 0; switchSeqNum < switchSeqCnt; switchSeqNum++) {
-            LCR_Result result = resLCR[switchSeqNum][i];
+    fImpCar_Type ZtiaAve[num_volt];
+    dump_ztia_csv(num_seq, num_volt, num_freq, desired_vpp, freq_list, Ztia, ZtiaAve);
+    dump_zdut_csv(num_seq, num_volt, num_freq, desired_vpp, freq_list, resZ);
+    dump_raw_lcr_csv(num_seq, num_volt, ZtiaAve, desired_vpp, resLCR);
+    dump_fit_lcr_csv(num_seq, num_volt, ZtiaAve, desired_vpp, resLCR);
+        
+    dump_lcr_box(num_seq, num_volt, ZtiaAve, desired_vpp, resLCR);
 
-            if (!isnan(result.L)) {
-                printf("║%2d│ %7.2g │ %7.2g │ %9.3g │%6.3g║\r\n",
-                       switchSeqNum,
-                       result.L * 1e3,   // mH
-                       result.C * 1e6,   // µF
-                       result.R,         // Ohm
-                       desired_vpp[i]);
-            } else {
-                printf("║%2d│ %7.2g │ %7.2g │ %9.3g │%6.3g║\r\n",
-                       switchSeqNum,
-                       result.L,
-                       result.C,
-                       result.R,         // Ohm
-                       desired_vpp[i]);
-            }
-
-            if (switchSeqNum == switchSeqCnt - 1) {
-                printf("╟──┼─────────┼─────────┼───────────┼──────╢\r\n");
-            }
-        }
-    }
-
-    printf("╚══╧═════════╧═════════╧═══════════╧══════╝\r\n");
 
     // OK, now go into interactive mode
-    struct measurement_config oldMeasCfg;
-    interactive_mode(i2c, ad5940, uart, oldEitCfg, oldMeasCfg, oldElCfg, switchSeqCnt);
+    //struct measurement_config oldMeasCfg;
+    //interactive_mode(i2c, ad5940, uart, oldEitCfg, oldMeasCfg, oldElCfg, num_seq);
 
     return 0;
 }

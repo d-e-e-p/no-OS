@@ -137,6 +137,145 @@ LCR_Result lcr_from_impedance(ImpedanceDataPoint data[], int num_points)
     return result;
 }
 
+
+
+void dump_ztia_csv(size_t switchSeqCnt,
+                       size_t num_volt,
+                       size_t num_freq,
+                       const float desired_vpp[num_volt],
+                       const float freq_list[num_freq],
+                       const fImpCar_Type Ztia[num_volt][num_freq],
+                       fImpCar_Type ZtiaAve[num_volt])
+{
+    printf("════════════   Ztia ═════════════════════\r\n");
+    printf("desired_vpp, freq, Ztia.R, Ztia.I\r\n");
+    for (size_t i = 0; i < num_volt; i++) {
+        ZtiaAve[i].Real = 0.0f;
+        ZtiaAve[i].Image = 0.0f;
+        for (size_t j = 0; j < num_freq; j++) {
+            ZtiaAve[i].Real += Ztia[i][j].Real;
+            ZtiaAve[i].Image += Ztia[i][j].Image;
+            printf("%.0f, %.0f, %0.f, %.0f\r\n",
+                    desired_vpp[i], freq_list[j], Ztia[i][j].Real, Ztia[i][j].Image);
+        }
+        ZtiaAve[i].Real = ZtiaAve[i].Real / (float) num_freq;
+        ZtiaAve[i].Image = ZtiaAve[i].Image / (float) num_freq;
+    }
+}
+
+void dump_zdut_csv(size_t switchSeqCnt,
+                       size_t num_volt,
+                       size_t num_freq,
+                       const float desired_vpp[num_volt],
+                       const float freq_list[num_freq],
+                       const ImpedanceDataPoint resZ[switchSeqCnt][num_volt][num_freq])
+{
+    printf("════════════   Zdut   ═══════════════════\r\n");
+    printf("seq, desired_vpp, freq, Ztia.R, Ztia.I\r\n");
+
+    for (size_t seq = 0; seq < switchSeqCnt; seq++) {
+        for (size_t i = 0; i < num_volt; i++) {
+            for (size_t j = 0; j < num_freq; j++) {
+                float zr = resZ[seq][i][j].Z.Real;
+                float zi = resZ[seq][i][j].Z.Image;
+                printf("%d, %.0f, %.0f, %0.f, %.0f\r\n",
+                    seq, desired_vpp[i], freq_list[j], zr, zi);
+            }
+        }
+    }
+}
+
+void dump_lcr_box(size_t switchSeqCnt,
+                       size_t num_volt,
+                       const fImpCar_Type ZtiaAve[num_volt],
+                       const float desired_vpp[num_volt],
+                       LCR_Result resLCR[switchSeqCnt][num_volt])
+{
+    printf("╔═════════════════════════════════════════╗\r\n");
+    printf("║            LCR Fitting Results          ║\r\n");
+    printf("╠══╤═════════╤═════════╤═══════════╤══════╣\r\n");
+    printf("║S │     L   │    C    │    R      │  vol ║\r\n");
+    printf("║  │   (mH)  │   (µF)  │   (Ω)     │      ║\r\n");
+    printf("╠══╪═════════╪═════════╪═══════════╪══════╣\r\n");
+
+    for (size_t seq = 0; seq < switchSeqCnt; seq++) {
+      for (size_t i = 0; i < num_volt; i++) {
+            LCR_Result result = resLCR[seq][i];
+
+            if (!isnan(result.L)) {
+                float res = result.R * 0.4832 - 462.16;
+                printf("║%2d│%8.2g │%8.2g │%10.3g │%6.3g║\r\n",
+                       seq, result.L * 1e3, result.C * 1e6, res , desired_vpp[i]);
+            } else {
+                printf("║%2d│ %7.2g │ %7.2g │ %9.3g │%6.3g║\r\n",
+                       seq, result.L, result.C, result.R, desired_vpp[i]);
+            }
+
+            if (i == num_volt - 1) {
+                printf("╟──┼─────────┼─────────┼───────────┼──────╢\r\n");
+            }
+        }
+    }
+
+    printf("╚══╧═════════╧═════════╧═══════════╧══════╝\r\n");
+}
+
+void dump_raw_lcr_csv(size_t switchSeqCnt,
+                  size_t num_volt,
+                  const fImpCar_Type ZtiaAve[num_volt],
+                  const float desired_vpp[num_volt],
+                  LCR_Result resLCR[switchSeqCnt][num_volt])
+{
+    // Header row
+    printf("╔═════════════════════════════════════════╗\r\n");
+    printf("║              CSV Raw                    ║\r\n");
+    printf("╠══╤═════════╤═════════╤═══════════╤══════╣\r\n");
+    printf("Seq,Vpp (mV), Ztia(Ohm),L(mH), C(pF),R(Ohm),FitError\r\n");
+
+    for (size_t seq = 0; seq < switchSeqCnt; seq++) {
+      for (size_t i = 0; i < num_volt; i++) {
+            LCR_Result result = resLCR[seq][i];
+
+            printf("%d,%.0f,%.0f,%.2g,%.2g,%.2f,%.2f\r\n",
+                   seq,
+                   desired_vpp[i],
+                   ZtiaAve[i].Real,  // Ohm
+                   result.L * 1e3,   // mH
+                   result.C * 1e12,  // pF
+                   result.R,         // Ohm
+                   result.fit_error * 1e3);
+        }
+    }
+}
+
+void dump_fit_lcr_csv(size_t switchSeqCnt,
+                  size_t num_volt,
+                  const fImpCar_Type ZtiaAve[num_volt],
+                  const float desired_vpp[num_volt],
+                  LCR_Result resLCR[switchSeqCnt][num_volt])
+{
+    // Header row
+    printf("╔═════════════════════════════════════════╗\r\n");
+    printf("║               CSV Fit                   ║\r\n");
+    printf("╠══╤═════════╤═════════╤═══════════╤══════╣\r\n");
+    printf("Seq,Vpp (mV), Ztia(Ohm),L(mH), C(pF),R(Ohm),FitError\r\n");
+
+    for (size_t seq = 0; seq < switchSeqCnt; seq++) {
+      for (size_t i = 0; i < num_volt; i++) {
+            LCR_Result result = resLCR[seq][i];
+
+            printf("%d,%.0f,%.0f,%.2g,%.2g,%.2f,%.2f\r\n",
+                   seq,
+                   desired_vpp[i],
+                   ZtiaAve[i].Real,  // Ohm
+                   result.L * 1e3,   // mH
+                   result.C * 1e12,  // pF
+                   //result.R * 0.4749 - 449.284, // ohm
+                   result.R * 0.4832 - 462.16, // ohm
+                   result.fit_error * 1e3);
+        }
+    }
+}
 // Define a main routine for testing
 int test()
 {
