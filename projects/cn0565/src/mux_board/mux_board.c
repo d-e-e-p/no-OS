@@ -116,8 +116,12 @@ void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *ad5940,
     uint8_t ypin[NUM_ELECTRODES];
     ypin[0] = 0; // CE0
     ypin[1] = 1; // RE0
-    ypin[2] = 3; // DE0
-    ypin[3] = 5; // AIN1
+    ypin[2] = 2; // SE0
+    ypin[3] = 3; // DE0
+    ypin[4] = 4; // AIN0
+    ypin[5] = 4; // AIN0
+    ypin[6] = 4; // AIN0
+    ypin[7] = 4; // AIN0
 
     // Array of pointers to struct fields
     uint16_t *electrodes[NUM_ELECTRODES] = {
