@@ -93,42 +93,6 @@ void print_int_array(const char *name, uint8_t *arr, size_t n) {
 
 
 
-/**
- * Generate switch combinations from a given sequence array.
- * see projects/cn0565/src/mux_board/mux_board.c for sequence, was originally weird
- * switch combination setup that allows independent measurement of each up-down connector pair 
- * in Left to right order, instead of default 0x70, 0x71, swapped order
- *
- * @param swSeq   Output array of electrode_combo structs
- * @param seq     Input sequence array (e.g. {1,10,11,9})
- * @param num_seq  Length of seq[]
- * @return        Number of generated combos (== num_seq)
- * eg:
- *  uint8_t seq[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
- */
-void generateSwitchCombination(struct electrode_combo *swSeq,
-                                 size_t num_seq,
-                                 uint8_t seq[num_seq])
-{
-    print_int_array("seq_list", seq, num_seq);
-    for (size_t seqCtr = 0; seqCtr < num_seq; seqCtr++) {
-
-        // each electrode has 2 pins, so jump by 2
-        uint8_t electrode = seq[seqCtr] * 2;
-
-        uint8_t plus  = electrode;
-        uint8_t minus = electrode + 1;
-
-        swSeq[seqCtr].F_plus  = plus;
-        swSeq[seqCtr].F_minus = minus;
-        swSeq[seqCtr].S_plus  = plus;
-        swSeq[seqCtr].S_minus = minus;
-
-        //printf("seqCtr %zu: plus=%u minus=%u\r\n", seqCtr, plus, minus);
-    }
-
-}
-
 /* !!Change the application parameters here if you want to change it to
  * none-default value */
 void AD5940BiaStructInit(void)
@@ -142,8 +106,8 @@ void AD5940BiaStructInit(void)
 
     //pBiaCfg->RcalVal = 1000.0; //Note: RCAL value should be similar to RTIA so the accuracy is best.
     pBiaCfg->RcalVal = 10.0; //Note: RCAL value should be similar to RTIA so the accuracy is best.
-    //pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
-    pBiaCfg->HstiaRtiaSel = HSTIARTIA_1K; 
+    pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
+    //pBiaCfg->HstiaRtiaSel = HSTIARTIA_1K; 
                               
                                
     pBiaCfg->DftNum = DFTNUM_8192;
@@ -184,12 +148,70 @@ void print_float_array(const char *name, float *arr, size_t n) {
 }
 
 
+/*
+Dswitch : D node = electrode sense pin
+Pswitch : P node = excitation buffer output
+Nswitch : N node = reference/return for excitation buffer
+Tswitch : T node = HSTIA input (current measurement path)
+
+            def   
+Y0 -> F+    CE0
+Y1 -> S+    RE0
+Y2 -> S-    SE0
+Y3 -> F-    DE0
+
+*/
+
+typedef enum {
+    DRIVE_AIN1_AIN1,
+    DRIVE_AIN1_AIN0,
+    DRIVE_DE0_RLOAD
+} DriveOption;
+
+
+void define_switch_config(DriveOption option)
+{
+    AppBiaCfg_Type *pBiaCfg;
+    AppBiaGetCfg(&pBiaCfg);
+
+    pBiaCfg->HstiaDeRload = HSTIADERLOAD_OPEN;
+    pBiaCfg->HstiaDeRtia = HSTIADERTIA_TODE;
+
+    switch (option) {
+        case DRIVE_AIN1_AIN1:
+            pBiaCfg->Dswitch = SWD_CE0;                // S+
+            pBiaCfg->Pswitch = SWP_CE0;                // F+
+            pBiaCfg->Nswitch = SWN_AIN1;               // F-
+            pBiaCfg->Tswitch = SWT_AIN1 | SWT_TRTIA;   // S-
+            break;
+
+        case DRIVE_AIN1_AIN0:
+            // Excitation Buffer (P-node) → CE0 → DUT → AIN0 → TIA
+            pBiaCfg->Dswitch = SWD_CE0;                // counter electrode pin
+            pBiaCfg->Pswitch = SWP_CE0;                // driven by excitation buffer output
+            pBiaCfg->Nswitch = SWN_AIN1;               // return path for excitation
+            pBiaCfg->Tswitch = SWT_AIN0 | SWT_TRTIA;   // routed into TIA
+            break;
+
+        case DRIVE_DE0_RLOAD:
+            pBiaCfg->Dswitch = SWD_CE0;
+            pBiaCfg->Pswitch = SWP_CE0;
+            pBiaCfg->Nswitch = SWN_NL;
+            pBiaCfg->Tswitch = SWT_DE0LOAD;
+
+            pBiaCfg->HstiaDeRload = HSTIADERLOAD_0R;
+            pBiaCfg->HstiaDeRtia = HSTIADERTIA_50;
+
+            break;
+    }
+}
+
+
 int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 {
     int ret;
     //struct eit_config oldEitCfg;
     //struct electrode_combo oldElCfg;
-    struct electrode_combo swComboSeq[MUXBOARD_SIZE]; // TODO review when nElCount is 32
     uint16_t switchSeqNum = 0;
 
     AppBiaCfg_Type *pBiaCfg;
@@ -205,12 +227,12 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     AD5940BiaStructInit(); /* Configure run parameters */
 
     // define switch config
-    define_switch_config(&pBiaCfg);
+    DriveOption opt = DRIVE_DE0_RLOAD;
+    define_switch_config(opt);
     
-    uint8_t seq[] = {10, 11, 9};
+    uint8_t seq[] = {10, 11};
     size_t num_seq = sizeof(seq)/sizeof(seq[0]);
-    generateSwitchCombination(swComboSeq, num_seq, seq);
-    setMuxSwitch(i2c, ad5940, swComboSeq[0]);
+    setMuxSwitch(i2c, ad5940, seq[0]);
     print_int_array("seq_list", seq, num_seq);
 
 
@@ -243,7 +265,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
             for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
                 printf("%s:═══════════════════════ experiment %d probe  %.0f mV %.0f Hz \r\n",
                         __FUNCTION__, switchSeqNum, desired_vpp[i], freq_list[j] );
-                setMuxSwitch(i2c, ad5940, swComboSeq[switchSeqNum]);
+                setMuxSwitch(i2c, ad5940, seq[switchSeqNum]);
                 AppBiaRdutRun(ad5940, &resZ[switchSeqNum][i][j]);
             }
         }

@@ -1051,7 +1051,7 @@ int ad5940_HSLoopCfgS(struct ad5940_dev *dev, HSLoopCfg_Type *pHsLoopCfg)
 	if (ret < 0)
 		return ret;
 
-	ret = temp_ad5940_HSTIACfgS(dev, &pHsLoopCfg->HsTiaCfg);
+	ret = ad5940_HSTIACfgS(dev, &pHsLoopCfg->HsTiaCfg);
 	if (ret < 0)
 		return ret;
 
@@ -1123,17 +1123,19 @@ int ad5940_HSDacCfgS(struct ad5940_dev *dev, HSDACCfg_Type *pHsDacCfg)
 
    @return return 0 in case of success, negative error code otherwise.
  */
-int temp_ad5940_HSTIACfgS(struct ad5940_dev *dev, HSTIACfg_Type *pHsTiaCfg)
+int ad5940_HSTIACfgS(struct ad5940_dev *dev, HSTIACfg_Type *pHsTiaCfg)
 {
 	int ret;
 	uint32_t tempreg;
 
 	if (pHsTiaCfg == NULL) return -EINVAL;
 	/* Available parameter is 1k, 5k,...,160k, short, OPEN */
+    /*
 	if (pHsTiaCfg->HstiaDeRtia < HSTIADERTIA_1K)
 		return -EINVAL;
 	if (pHsTiaCfg->HstiaDeRtia > HSTIADERTIA_OPEN)
-		return -EINVAL;  /* Parameter is invalid */
+		return -EINVAL;  
+    */
 
 	if (pHsTiaCfg->HstiaDeRload > HSTIADERLOAD_OPEN)
 		return -EINVAL;  /* Available parameter is OPEN, 0R,..., 100R */

@@ -389,42 +389,11 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
     Y3 -> F-    DE0
 
     */
+    sw_cfg.Dswitch = AppBiaCfg.Dswitch;     // S+
+    sw_cfg.Pswitch = AppBiaCfg.Pswitch;     // F+
+    sw_cfg.Nswitch = AppBiaCfg.Nswitch;     // F-
+    sw_cfg.Tswitch = AppBiaCfg.Tswitch;     // S-
 
-    enum DriveOption {
-        USE_AIN1,
-        USE_BOTH_AIN1_AND_AIN0,
-        USE_DE0_RES,
-    };
-
-    enum DriveOption drive_option = USE_DE0_RES;
-
-    switch (drive_option) {
-        case USE_AIN1:
-            sw_cfg.Dswitch = SWD_CE0;                // S+
-            sw_cfg.Pswitch = SWP_CE0;                // F+
-            sw_cfg.Nswitch = SWN_AIN1;               // F-
-            sw_cfg.Tswitch = SWT_AIN1 | SWT_TRTIA;   // S-
-            break;
-
-        case USE_BOTH_AIN1_AND_AIN0:
-            // Excitation Buffer (P-node) → CE0 → DUT → AIN0 → TIA
-            sw_cfg.Dswitch = SWD_CE0;                // CE0 is the counter electrode pin
-            sw_cfg.Pswitch = SWP_CE0;                // CE0 driven by excitation buffer output
-            sw_cfg.Nswitch = SWN_AIN1;               // return path for excitation
-            sw_cfg.Tswitch = SWT_AIN0 | SWT_TRTIA;   // AIN0 routed into TIA
-            break;
-
-        case USE_DE0_RES:
-            sw_cfg.Dswitch = SWD_CE0;
-            sw_cfg.Pswitch = SWP_CE0;
-            //sw_cfg.Nswitch = SWN_DE0LOAD;
-            sw_cfg.Tswitch = SWT_DE0LOAD;
-
-            AppBiaCfg.HstiaDeRload = HSTIADERLOAD_0R;
-            AppBiaCfg.HstiaDeRtia = HSTIADERTIA_50;
-
-            break;
-    }
 	ret = ad5940_SWMatrixCfgS(dev, &sw_cfg);
 	if (ret < 0)
 		return ret;
@@ -553,7 +522,7 @@ int AppBiaRdutRun(struct ad5940_dev *dev, ImpedanceDataPoint *res)
 	hsrtia_cal.SysClkFreq = AppBiaCfg.SysClkFreq;
 	hsrtia_cal.fFreq = AppBiaCfg.SinFreq;
 
-	return ad5940_MeasureDUT(dev, &hsrtia_cal, &AppBiaCfg, res);
+	return ad5940_MeasureDUT(dev, &hsrtia_cal, res);
 }
 
 

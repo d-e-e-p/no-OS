@@ -156,7 +156,7 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, Impedance
 		bADCClk32MHzMode = true;
 
 	/* Calculate the excitation voltage we should use based on setting */
-    ExcitConfig excit_config = compute_excit_config(AppBiaCfg->DesiredVoltage);
+    ExcitConfig excit_config = compute_excit_config(pBiaCfg->DesiredVoltage);
     //printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
     //        __FUNCTION__, excit_config.requested_vpp, excit_config.actual_vpp);
 
@@ -316,7 +316,7 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, Impedance
         .Image = AppBiaCfg->RtiaCurrValue[1],
     };
     */
-    fImpCar_Type Ztia = AppBiaCfg->ZtiaCalCurrValue;
+    fImpCar_Type Ztia = pBiaCfg->ZtiaCalCurrValue;
 
     //printf("%s: dtia = %.2f + %.2f j\r\n", __FUNCTION__, DftVtia.Real, DftVtia.Image);
     //printf("%s: ddut = %.2f + %.2f j\r\n", __FUNCTION__, DftVdut.Real, DftVdut.Image);

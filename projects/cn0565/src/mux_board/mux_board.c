@@ -37,19 +37,6 @@
 #include "mux_board.h"
 #include "app.h"
 
-struct adg2128_pinmap {
-	uint8_t chip_addr;
-	uint8_t selector;
-};
-
-enum ElectrodeField {
-    F_PLUS = 0,
-    S_PLUS,
-    S_MINUS,
-    F_MINUS,
-    NUM_ELECTRODES
-};
-
 /* Mapping of ADG2128 Xm Pins to Yn Pins
    Where:
    Xm - is one of the multiplexed electrode pins
@@ -64,34 +51,36 @@ usually:
 
 */
 struct adg2128_pinmap board_map[ADG2128_MUX_SIZE] = {
-	
-	{0x70, 0x80}, //Electrode 0, I2C addr = 0x70, Mux Config (X0 to Yn)
-	{0x70, 0x88}, //Electrode 1, I2C addr = 0x70, Mux Config (X1 to Yn)
-	{0x70, 0x90}, //Electrode 2, I2C addr = 0x70, Mux Config (X2 to Yn)
-	{0x70, 0x98}, //Electrode 3, I2C addr = 0x70, Mux Config (X3 to Yn)
-	{0x70, 0xA0}, //Electrode 4, I2C addr = 0x70, Mux Config (X4 to Yn)
-	{0x70, 0xA8}, //Electrode 5, I2C addr = 0x70, Mux Config (X5 to Yn)
-	{0x70, 0xC0}, //Electrode 6, I2C addr = 0x70, Mux Config (X6 to Yn)
-	{0x70, 0xC8}, //Electrode 7, I2C addr = 0x70, Mux Config (X7 to Yn)
-	{0x70, 0xD0}, //Electrode 8, I2C addr = 0x70, Mux Config (X8 to Yn)
-	{0x70, 0xD8}, //Electrode 9, I2C addr = 0x70, Mux Config (X9 to Yn)
-	{0x70, 0xE0}, //Electrode 10, I2C addr = 0x70, Mux Config (X10 to Yn)
-	{0x70, 0xE8}, //Electrode 11, I2C addr = 0x70, Mux Config (X11 to Yn)
-                  
-	{0x71, 0x80}, //Electrode 12, I2C addr = 0x71, Mux Config (X0 to Yn)
-	{0x71, 0x88}, //Electrode 13, I2C addr = 0x71, Mux Config (X1 to Yn)
-	{0x71, 0x90}, //Electrode 14, I2C addr = 0x71, Mux Config (X2 to Yn)
-	{0x71, 0x98}, //Electrode 15, I2C addr = 0x71, Mux Config (X3 to Yn)
-	{0x71, 0xA0}, //Electrode 16, I2C addr = 0x71, Mux Config (X4 to Yn)
-	{0x71, 0xA8}, //Electrode 17, I2C addr = 0x71, Mux Config (X5 to Yn)
-	{0x71, 0xC0}, //Electrode 18, I2C addr = 0x71, Mux Config (X6 to Yn)
-	{0x71, 0xC8}, //Electrode 19, I2C addr = 0x71, Mux Config (X7 to Yn)
-	{0x71, 0xD0}, //Electrode 20, I2C addr = 0x71, Mux Config (X8 to Yn)
-	{0x71, 0xD8}, //Electrode 21, I2C addr = 0x71, Mux Config (X9 to Yn)
-	{0x71, 0xE0}, //Electrode 22, I2C addr = 0x71, Mux Config (X10 to Yn)
-	{0x71, 0xE8}, //Electrode 23, I2C addr = 0x71, Mux Config (X11 to Yn)
-                  
+
+    {0x70, 0x80}, //Electrode 0, I2C addr = 0x70, Mux Config (X0 to Yn)
+    {0x70, 0x88}, //Electrode 1, I2C addr = 0x70, Mux Config (X1 to Yn)
+    {0x70, 0x90}, //Electrode 2, I2C addr = 0x70, Mux Config (X2 to Yn)
+    {0x70, 0x98}, //Electrode 3, I2C addr = 0x70, Mux Config (X3 to Yn)
+    {0x70, 0xA0}, //Electrode 4, I2C addr = 0x70, Mux Config (X4 to Yn)
+    {0x70, 0xA8}, //Electrode 5, I2C addr = 0x70, Mux Config (X5 to Yn)
+    {0x70, 0xC0}, //Electrode 6, I2C addr = 0x70, Mux Config (X6 to Yn)
+    {0x70, 0xC8}, //Electrode 7, I2C addr = 0x70, Mux Config (X7 to Yn)
+    {0x70, 0xD0}, //Electrode 8, I2C addr = 0x70, Mux Config (X8 to Yn)
+    {0x70, 0xD8}, //Electrode 9, I2C addr = 0x70, Mux Config (X9 to Yn)
+    {0x70, 0xE0}, //Electrode 10, I2C addr = 0x70, Mux Config (X10 to Yn)
+    {0x70, 0xE8}, //Electrode 11, I2C addr = 0x70, Mux Config (X11 to Yn)
+
+    {0x71, 0x80}, //Electrode 12, I2C addr = 0x71, Mux Config (X0 to Yn)
+    {0x71, 0x88}, //Electrode 13, I2C addr = 0x71, Mux Config (X1 to Yn)
+    {0x71, 0x90}, //Electrode 14, I2C addr = 0x71, Mux Config (X2 to Yn)
+    {0x71, 0x98}, //Electrode 15, I2C addr = 0x71, Mux Config (X3 to Yn)
+    {0x71, 0xA0}, //Electrode 16, I2C addr = 0x71, Mux Config (X4 to Yn)
+    {0x71, 0xA8}, //Electrode 17, I2C addr = 0x71, Mux Config (X5 to Yn)
+    {0x71, 0xC0}, //Electrode 18, I2C addr = 0x71, Mux Config (X6 to Yn)
+    {0x71, 0xC8}, //Electrode 19, I2C addr = 0x71, Mux Config (X7 to Yn)
+    {0x71, 0xD0}, //Electrode 20, I2C addr = 0x71, Mux Config (X8 to Yn)
+    {0x71, 0xD8}, //Electrode 21, I2C addr = 0x71, Mux Config (X9 to Yn)
+    {0x71, 0xE0}, //Electrode 22, I2C addr = 0x71, Mux Config (X10 to Yn)
+    {0x71, 0xE8}, //Electrode 23, I2C addr = 0x71, Mux Config (X11 to Yn)
+
 };
+
+
 
 /*
  * mapping for cn0565
@@ -106,52 +95,50 @@ struct adg2128_pinmap board_map[ADG2128_MUX_SIZE] = {
 *	    Y7 AIN3
 */
 
-void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *ad5940,
-                  struct electrode_combo sw)
+
+void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *ad5940, uint8_t pin)
 {
     uint8_t i2c_addr;
     uint8_t muxData[2] = {0, 0x01};
 
+    uint8_t plus  = 2 * pin;
+    uint8_t minus = plus + 1;
+
     // Map enum to corresponding Y pin
-    uint8_t ypin[NUM_ELECTRODES];
-    ypin[0] = 0; // CE0
-    ypin[1] = 1; // RE0
-    ypin[2] = 2; // SE0
-    ypin[3] = 3; // DE0
-    ypin[4] = 4; // AIN0
-    ypin[5] = 4; // AIN0
-    ypin[6] = 4; // AIN0
-    ypin[7] = 4; // AIN0
-
-    // Array of pointers to struct fields
-    uint16_t *electrodes[NUM_ELECTRODES] = {
-        &sw.F_plus,
-        &sw.S_plus,
-        &sw.S_minus,
-        &sw.F_minus
+    // assume X:input and Y:output
+    int8_t y2x_map[] = {
+        plus,  // CE0
+        plus,  // RE0
+        minus, // SE0
+        minus, // DE0
+        minus, // AIN0
+        minus, // AIN0
+        minus, // AIN0
+        minus, // AIN0
     };
-
+    size_t y2x_map_size = sizeof(y2x_map) / sizeof(y2x_map[0]);
     size_t total_electrodes = sizeof(board_map) / sizeof(board_map[0]);
 
     ADG2128_SwRst(ad5940);
 
-    for (enum ElectrodeField node = F_PLUS; node < NUM_ELECTRODES; node++) {
-        uint16_t curr_el = *electrodes[node];
+    for (size_t curr_y=0; curr_y < y2x_map_size; curr_y++) {
+        uint16_t curr_x = y2x_map[curr_y];
 
-        if (curr_el < total_electrodes) {
-            i2c_addr = board_map[curr_el].chip_addr;
-            muxData[0] = board_map[curr_el].selector + ypin[node];
+        if (curr_x < total_electrodes) {
+            i2c_addr = board_map[curr_x].chip_addr;
+            muxData[0] = board_map[curr_x].selector + curr_y;
 
-            //printf("[DEBUG] Node=%d Y=%u -> electrode %u (curr_el=%u) i2c_addr=0x%02X selector=0x%02X\r\n",
-            //          node, ypin[node], curr_el, curr_el, i2c_addr, muxData[0]);
+            //printf("%s: [DEBUG] curr_x=%d curr_y=%d i2c_addr=0x%02X selector=0x%02X\r\n",
+            //        __FUNCTION__, curr_x, curr_y, i2c_addr, muxData[0]);
 
             i2c->slave_address = i2c_addr;
             if (no_os_i2c_write(i2c, muxData, sizeof(muxData), true) != 0) {
-                printf("[ERROR] I2C write failed for addr 0x%02X\r\n", i2c_addr);
+                printf("%s: [ERROR] I2C write failed for addr 0x%02X\r\n", 
+                        __FUNCTION__, i2c_addr);
             }
         } else {
-            printf("[WARN] Node=%d Y=%u electrode index %u out of range (max=%zu)\r\n",
-                   node, ypin[node], curr_el, total_electrodes - 1);
+            printf("%s: [WARN] curr_x %d > %d\r\n",
+                    __FUNCTION__, curr_x, total_electrodes - 1);
         }
     }
 

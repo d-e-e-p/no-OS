@@ -38,6 +38,7 @@
 #include "ad5940.h"
 #define ADG2128_MUX_SIZE 24
 #define MUXBOARD_SIZE ADG2128_MUX_SIZE
+
 enum muxbrd_variant {
 	ADG2128MUXBOARD,
 	ADG731MUXBOARD,
@@ -54,7 +55,20 @@ struct electrode_combo {
 	uint16_t F_minus;
 };
 
-void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *dev,
-		  struct electrode_combo sw);
+struct adg2128_pinmap {
+	uint8_t chip_addr;
+	uint8_t selector;
+};
+
+enum ElectrodeField {
+    F_PLUS = 0,
+    S_PLUS,
+    S_MINUS,
+    F_MINUS,
+    NUM_ELECTRODES
+};
+
+
+void setMuxSwitch(struct no_os_i2c_desc *i2c, struct ad5940_dev *ad5940, uint8_t pin);
 
 #endif /* MUXBOARD_H_ */
