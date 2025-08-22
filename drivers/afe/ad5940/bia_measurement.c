@@ -126,7 +126,7 @@ int AppBiaCtrl(struct ad5940_dev *dev, int32_t BcmCtrl, void *pPara)
 			return ret;
 
 		AppBiaCfg.FifoDataCount = 0; /* restart */
-		printf("%s: FifoDataCount=%lu\n\r", __FUNCTION__, AppBiaCfg.FifoDataCount);
+		printf("%s: FifoDataCount=%lu\n\r", __func__, AppBiaCfg.FifoDataCount);
 		break;
 	}
 	case BIACTRL_STOPNOW: {
@@ -435,7 +435,7 @@ static int AppBiaSeqMeasureGen(struct ad5940_dev *dev, bool bImpedanceMode)
 		return ret;
 
 	if (bImpedanceMode) {
-        //printf("%s: impedance mode = %d\r\n", __FUNCTION__, bImpedanceMode);
+        //printf("%s: impedance mode = %d\r\n", __func__, bImpedanceMode);
 		/*************************************/
 		ret = ad5940_ADCMuxCfgS(dev, ADCMUXP_HSTIA_P, ADCMUXN_HSTIA_N);
 		if (ret < 0)
@@ -604,7 +604,7 @@ int AppBiaInit(struct ad5940_dev *dev, uint32_t *pBuffer, uint32_t BufferSize)
 		return ret;
 
 	/* Do RTIA calibration */
-	printf("%s: Do RTIA calibration  \r\n", __FUNCTION__);
+	//printf("%s: Do RTIA calibration  \r\n", __func__);
 
 	if ((AppBiaCfg.bParamsChanged == true) || (AppBiaCfg.ReDoRtiaCal == true) ||
 	    AppBiaCfg.BiaInited == false) { /* Do calibration on the first initializaion */
@@ -774,14 +774,14 @@ fImpCar_Type computeImpedance(uint32_t *const pData)
 
     printf(
         "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
-        __FUNCTION__,
+        __func__,
         DftVtia.Real, DftVtia.Image,
         Ztia.Real, Ztia.Image
     );
 
     printf(
         "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
-        __FUNCTION__,
+        __func__,
         Zdut.Real, Zdut.Image,
         DftVdut.Real, DftVdut.Image,
         Idut.Real, Idut.Image

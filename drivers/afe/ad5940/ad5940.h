@@ -2662,7 +2662,7 @@ enum ad5940_afe_result {
 #define SWN_AIN2                    (1<<2)    // N3
 #define SWN_AIN3                    (1<<3)    // N4
 #define SWN_SE0LOAD                 (1<<4)    // N5 SE0 pin via RLOAD_SE0.
-#define SWN_DE0LOAD                 (1<<5)    // N6 SE0 <<-- BUG
+#define SWN_DE0LOAD                 (1<<5)    // N6 SE0 <<-- BUG in AD5940/AD5941 Datasheet?
 #define SWN_SE1LOAD                 (1<<6)    // N7 AFE3 pin via the RLOAD_AFE3 resistor.
 #define SWN_DE1LOAD                 (1<<7)    // N8 reserved
 #define SWN_SE0                     (1<<8)    // N9 SE0 pin, bypassing the RLOAD_SE0 resistor.

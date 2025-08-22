@@ -76,8 +76,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 	bool bADCClk32MHzMode = false;
 
 	//uint32_t RtiaVal;
-	static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
-    printf("%s: Rtia = %ld\r\n", __func__, HpRtiaTable[AppBiaCfg->HstiaRtiaSel]);
+	//static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
+    //printf("%s: Rtia = %ld\r\n", __func__, HpRtiaTable[AppBiaCfg->HstiaRtiaSel]);
     float RcalVal = pCalCfg->fRcal;
     fImpCar_Type ZcalVal = { RcalVal, 0.0f };
 
@@ -101,8 +101,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 
     /* Calculate the excitation voltage we should use based on setting */
     ExcitConfig excit_config = compute_excit_config(AppBiaCfg->DesiredVoltage);
-    printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
-            __func__, excit_config.requested_vpp, excit_config.actual_vpp);
+    //printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
+    //        __func__, excit_config.requested_vpp, excit_config.actual_vpp);
 
 	ret = ad5940_AFECtrlS(dev, AFECTRL_ALL, false);  /* Init all to disable state */
 	if (ret < 0)
@@ -137,6 +137,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 	hs_loop.SWMatCfg.Nswitch = SWN_RCAL1;
 	hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_TRTIA;
     */
+    // only for DRIVE_DE0_RLOAD
 	hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
 	hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
 	hs_loop.SWMatCfg.Nswitch = SWN_RCAL1 | SWN_DE0LOAD;

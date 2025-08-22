@@ -207,12 +207,22 @@ void define_switch_config(DriveOption option)
 }
 
 
+#include <unistd.h>
+void mem_free_space(void) {
+    char sp;
+    void *heap_end = sbrk(0);
+    size_t free_bytes = (uintptr_t)&sp - (uintptr_t)heap_end;
+    printf("Free space between heap and stack = %d bytes\r\n", free_bytes);
+}
+
+
 int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 {
     int ret;
     //struct eit_config oldEitCfg;
     //struct electrode_combo oldElCfg;
     uint16_t switchSeqNum = 0;
+    mem_free_space();
 
     AppBiaCfg_Type *pBiaCfg;
     AppBiaGetCfg(&pBiaCfg);
@@ -230,11 +240,12 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     DriveOption opt = DRIVE_DE0_RLOAD;
     define_switch_config(opt);
     
-    uint8_t seq[] = {10, 11};
+    uint8_t seq[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
     size_t num_seq = sizeof(seq)/sizeof(seq[0]);
     setMuxSwitch(i2c, ad5940, seq[0]);
     print_int_array("seq_list", seq, num_seq);
 
+    //heap_get_usage();
 
     // step1 : setup sequence
     float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
@@ -244,12 +255,14 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
     //float desired_vpp[] = {10, 20, 50, 100, 200, 500, 1000, 2000 };
     //float desired_vpp[] = {10, 15, 20, 25, 30, 35, 40};
-    float desired_vpp[] = {10, 15, 20};
+    float desired_vpp[] = {2000};
     size_t num_volt = sizeof(desired_vpp)/sizeof(desired_vpp[0]);
     print_float_array("desired_vpp", desired_vpp, num_volt);
 
     ImpedanceDataPoint resZ[num_seq][num_volt][num_freq];   // hold Z results 
+    mem_free_space();
     LCR_Result resLCR[num_seq][num_volt];   // hold LCR results 
+    mem_free_space();
                                                  //
     fImpCar_Type Ztia[num_volt][num_freq];
     printf("%s : init \r\n", __FUNCTION__);

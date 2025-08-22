@@ -12,6 +12,16 @@ static double cost_function(double L, double C, double R, const double *omegas, 
 static void calculate_gradient(double L, double C, double R, const double *omegas, const fImpCar_Type *admittances, int n, double *grad_L, double *grad_C, double *grad_R);
 static int compare_freq(const void *a, const void *b);
 
+LCR_Result fit_result(LCR_Result res)
+{
+    LCR_Result rfit = res;
+    rfit.L = res.L - 5.4e+02;
+    rfit.C = res.C - 1e-12;
+    rfit.R = 0.1321 * res.R + 91.808;
+    return rfit;
+}
+    
+
 /**
  * @brief Comparison function for qsort to sort data by frequency.
  */
@@ -203,9 +213,9 @@ void dump_lcr_box(size_t switchSeqCnt,
             LCR_Result result = resLCR[seq][i];
 
             if (!isnan(result.L)) {
-                float res = result.R * 0.4832 - 462.16;
+                LCR_Result res = fit_result(result);
                 printf("║%2d│%8.2g │%8.2g │%10.3g │%6.3g║\r\n",
-                       seq, result.L * 1e3, result.C * 1e6, res , desired_vpp[i]);
+                       seq, res.L * 1e3, res.C * 1e6, res.R , desired_vpp[i]);
             } else {
                 printf("║%2d│ %7.2g │ %7.2g │ %9.3g │%6.3g║\r\n",
                        seq, result.L, result.C, result.R, desired_vpp[i]);
@@ -235,15 +245,16 @@ void dump_raw_lcr_csv(size_t switchSeqCnt,
     for (size_t seq = 0; seq < switchSeqCnt; seq++) {
       for (size_t i = 0; i < num_volt; i++) {
             LCR_Result result = resLCR[seq][i];
+            LCR_Result res = fit_result(result);
 
             printf("%d,%.0f,%.0f,%.2g,%.2g,%.2f,%.2f\r\n",
                    seq,
                    desired_vpp[i],
                    ZtiaAve[i].Real,  // Ohm
-                   result.L * 1e3,   // mH
-                   result.C * 1e12,  // pF
-                   result.R,         // Ohm
-                   result.fit_error * 1e3);
+                   res.L * 1e3,   // mH
+                   res.C * 1e12,  // pF
+                   res.R,         // Ohm
+                   res.fit_error * 1e3);
         }
     }
 }
