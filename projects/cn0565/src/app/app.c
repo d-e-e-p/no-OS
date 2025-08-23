@@ -176,6 +176,7 @@ void define_switch_config(DriveOption option)
 
     pBiaCfg->HstiaDeRload = HSTIADERLOAD_OPEN;
     pBiaCfg->HstiaDeRtia = HSTIADERTIA_TODE;
+    pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
 
     switch (option) {
         case DRIVE_AIN1_AIN1:
@@ -196,11 +197,12 @@ void define_switch_config(DriveOption option)
         case DRIVE_DE0_RLOAD:
             pBiaCfg->Dswitch = SWD_CE0;
             pBiaCfg->Pswitch = SWP_CE0;
-            pBiaCfg->Nswitch = SWN_NL;
-            pBiaCfg->Tswitch = SWT_DE0LOAD;
+            pBiaCfg->Nswitch = SWN_DE0LOAD; // N6
+            pBiaCfg->Tswitch = SWT_DE0LOAD; // T10 and T6
 
             pBiaCfg->HstiaDeRload = HSTIADERLOAD_0R;
             pBiaCfg->HstiaDeRtia = HSTIADERTIA_50;
+            pBiaCfg->HstiaRtiaSel = HSTIARTIA_OPEN; // +- 200mV with 200 ohm dut
 
             break;
     }
@@ -249,13 +251,13 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
     // step1 : setup sequence
     float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
-    //float freq_list[] = {200, };
+    //float freq_list[] = {400, };
     size_t num_freq = sizeof(freq_list) / sizeof(freq_list[0]);
     print_float_array("freq_list", freq_list, num_freq);
 
     //float desired_vpp[] = {10, 20, 50, 100, 200, 500, 1000, 2000 };
     //float desired_vpp[] = {10, 15, 20, 25, 30, 35, 40};
-    float desired_vpp[] = {2000};
+    float desired_vpp[] = {1000,};
     size_t num_volt = sizeof(desired_vpp)/sizeof(desired_vpp[0]);
     print_float_array("desired_vpp", desired_vpp, num_volt);
 
@@ -266,6 +268,23 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
                                                  //
     fImpCar_Type Ztia[num_volt][num_freq];
     printf("%s : init \r\n", __FUNCTION__);
+
+    // collect ztia info
+    /*
+    const char *rtia_name[] = {"50Ω", "100Ω", "200Ω"};
+    for (size_t i = 0; i < num_volt; i++) {
+        pBiaCfg->DesiredVoltage = desired_vpp[i];
+        for (size_t j = 0; j < num_freq; j++) {
+            pBiaCfg->SinFreq = freq_list[j];
+            for (int rtia = HSTIADERTIA_50; rtia <= HSTIADERTIA_200; rtia++) {
+                printf("RTIA = %s:\r\n", rtia_name[rtia]);
+                pBiaCfg->HstiaDeRtia = rtia;
+                pBiaCfg->bParamsChanged = true;
+                AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
+            }
+        }
+    }
+    */
                                                         
     for (size_t i = 0; i < num_volt; i++) {
         pBiaCfg->DesiredVoltage = desired_vpp[i];
@@ -275,6 +294,11 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
             pBiaCfg->bParamsChanged = true;
             AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
             Ztia[i][j] = pBiaCfg->ZtiaCalCurrValue;
+            // temp hack
+            pBiaCfg->HstiaDeRtia = HSTIADERTIA_50;
+            float RcalVal = 50;
+            fImpCar_Type ZcalVal = { RcalVal, 0.0f };
+            pBiaCfg->ZtiaCalCurrValue = ZcalVal;
             for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
                 printf("%s:═══════════════════════ experiment %d probe  %.0f mV %.0f Hz \r\n",
                         __FUNCTION__, switchSeqNum, desired_vpp[i], freq_list[j] );

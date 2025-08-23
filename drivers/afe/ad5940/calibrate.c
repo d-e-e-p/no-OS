@@ -75,6 +75,9 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 	DSPCfg_Type dsp_cfg;
 	bool bADCClk32MHzMode = false;
 
+    AppBiaCfg_Type *pBiaCfg;
+    AppBiaGetCfg(&pBiaCfg);
+
 	//uint32_t RtiaVal;
 	//static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
     //printf("%s: Rtia = %ld\r\n", __func__, HpRtiaTable[AppBiaCfg->HstiaRtiaSel]);
@@ -130,19 +133,35 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 	hs_loop.HsDacCfg.ExcitBufGain = excit_config.ExcitBuffGain;
 	hs_loop.HsDacCfg.HsDacGain = excit_config.HsDacGain;
 	hs_loop.HsDacCfg.HsDacUpdateRate = 7; /* Set it to highest update rate */
-	memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
-    /*
-	hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
-	hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
-	hs_loop.SWMatCfg.Nswitch = SWN_RCAL1;
-	hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_TRTIA;
-    */
-    // only for DRIVE_DE0_RLOAD
-	hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
-	hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
-	hs_loop.SWMatCfg.Nswitch = SWN_RCAL1 | SWN_DE0LOAD;
-	hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_DE0LOAD;
 
+
+    // RTIA or RTIA_DE0 ?
+    if(pBiaCfg->HstiaDeRtia == HSTIADERTIA_OPEN) {
+        // regular RTIA
+        hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
+        hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
+        hs_loop.SWMatCfg.Nswitch = SWN_RCAL1;
+        hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_TRTIA;
+    } else {
+        //RTIA_DE0
+        hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
+        hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
+        hs_loop.SWMatCfg.Nswitch = SWN_RCAL1 | SWN_DE0LOAD; // NR1 + N6
+        hs_loop.SWMatCfg.Tswitch = SWT_DE0LOAD; //  T10 
+    }
+
+    // is the RTIA coming from RTIA or RTIA_DE0 ?
+	memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
+    if(pBiaCfg->HstiaDeRtia == HSTIADERTIA_OPEN) {
+        // regular RTIA
+        hs_loop.HsTiaCfg.HstiaDeRload = HSTIADERTIA_TODE; // short HSTIA output to DE0 pin
+        hs_loop.HsTiaCfg.HstiaDeRtia = HSTIADERTIA_OPEN;
+        hs_loop.HsTiaCfg.HstiaRtiaSel = pBiaCfg->HstiaRtiaSel;
+    } else {
+        hs_loop.HsTiaCfg.HstiaDeRload = HSTIADERLOAD_OPEN; // just for calib
+        hs_loop.HsTiaCfg.HstiaDeRtia = pBiaCfg->HstiaDeRtia;
+        hs_loop.HsTiaCfg.HstiaRtiaSel = HSTIARTIA_OPEN;
+    }
 
 	hs_loop.WgCfg.WgType = WGTYPE_SIN;
 	hs_loop.WgCfg.GainCalEn =

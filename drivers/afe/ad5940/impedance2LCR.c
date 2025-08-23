@@ -15,9 +15,10 @@ static int compare_freq(const void *a, const void *b);
 LCR_Result fit_result(LCR_Result res)
 {
     LCR_Result rfit = res;
-    rfit.L = res.L - 5.4e+02;
-    rfit.C = res.C - 1e-12;
-    rfit.R = 0.1321 * res.R + 91.808;
+    rfit.L = res.L - 0.535;
+    rfit.C = res.C;
+    // y = 5.1291x - 463.51
+    rfit.R = 5.1291 * res.R - 463.51;
     return rfit;
 }
     
@@ -244,9 +245,8 @@ void dump_raw_lcr_csv(size_t switchSeqCnt,
 
     for (size_t seq = 0; seq < switchSeqCnt; seq++) {
       for (size_t i = 0; i < num_volt; i++) {
-            LCR_Result result = resLCR[seq][i];
-            LCR_Result res = fit_result(result);
 
+            LCR_Result res = resLCR[seq][i];
             printf("%d,%.0f,%.0f,%.2g,%.2g,%.2f,%.2f\r\n",
                    seq,
                    desired_vpp[i],
@@ -274,15 +274,15 @@ void dump_fit_lcr_csv(size_t switchSeqCnt,
     for (size_t seq = 0; seq < switchSeqCnt; seq++) {
       for (size_t i = 0; i < num_volt; i++) {
             LCR_Result result = resLCR[seq][i];
+            LCR_Result res = fit_result(result);
 
             printf("%d,%.0f,%.0f,%.2g,%.2g,%.2f,%.2f\r\n",
                    seq,
                    desired_vpp[i],
                    ZtiaAve[i].Real,  // Ohm
-                   result.L * 1e3,   // mH
-                   result.C * 1e12,  // pF
-                   //result.R * 0.4749 - 449.284, // ohm
-                   result.R * 0.4832 - 462.16, // ohm
+                   res.L * 1e3,   // mH
+                   res.C * 1e12,  // pF
+                   res.R, // ohm
                    result.fit_error * 1e3);
         }
     }

@@ -185,13 +185,26 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, Impedance
 	hs_loop.HsDacCfg.ExcitBufGain = excit_config.ExcitBuffGain;
 	hs_loop.HsDacCfg.HsDacGain = excit_config.HsDacGain;
 	hs_loop.HsDacCfg.HsDacUpdateRate = 7; /* Set it to highest update rate */
-	memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
 
-    // 
+    // is the RTIA coming from RTIA or RTIA_DE0 ?
     hs_loop.SWMatCfg.Dswitch = pBiaCfg->Dswitch; // S+
     hs_loop.SWMatCfg.Pswitch = pBiaCfg->Pswitch; // F+
     hs_loop.SWMatCfg.Nswitch = pBiaCfg->Nswitch; // F-
     hs_loop.SWMatCfg.Tswitch = pBiaCfg->Tswitch; // S-
+
+    // is the RTIA coming from RTIA or RTIA_DE0 ?
+    memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
+    if(pBiaCfg->HstiaDeRtia == HSTIADERTIA_OPEN) {
+        // regular RTIA
+        hs_loop.HsTiaCfg.HstiaDeRload = HSTIADERTIA_TODE; // short HSTIA output to DE0
+        hs_loop.HsTiaCfg.HstiaDeRtia = HSTIADERTIA_OPEN;
+        hs_loop.HsTiaCfg.HstiaRtiaSel = pBiaCfg->HstiaRtiaSel;
+    } else {
+        hs_loop.HsTiaCfg.HstiaDeRload = pBiaCfg->HstiaDeRload; 
+        hs_loop.HsTiaCfg.HstiaDeRtia = pBiaCfg->HstiaDeRtia;
+        hs_loop.HsTiaCfg.HstiaRtiaSel = HSTIARTIA_OPEN;
+    }
+
                                                         
 	hs_loop.WgCfg.WgType = WGTYPE_SIN;
 	hs_loop.WgCfg.GainCalEn = false;      /* @todo. If we have factory calibration data, enable it */

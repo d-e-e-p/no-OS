@@ -1170,14 +1170,20 @@ int ad5940_HSTIACfgS(struct ad5940_dev *dev, HSTIACfg_Type *pHsTiaCfg)
 			{ 0x03, 0x04, 0x05, 0x06, 0x07,},  /* RTIA 100Ohm */
 			{ 0x07, 0x07, 0x09, 0x09, 0x0a,} /* RTIA 200Ohm */
 		};
-		if (pHsTiaCfg->HstiaDeRload < HSTIADERLOAD_OPEN)
+		if (pHsTiaCfg->HstiaDeRload < HSTIADERLOAD_OPEN) {
 			tempreg = (uint32_t)(
 					  DeRtiaTable[pHsTiaCfg->HstiaDeRtia][pHsTiaCfg->HstiaDeRload]) << 3;
-		else
+            //printf("%s: tempreg=0x%lx pHsTiaCfg->HstiaDeRtia=%ld pHsTiaCfg->HstiaDeRload=%ld DeRtiaTable=0x%x \r\n", 
+            //        __func__, tempreg, pHsTiaCfg->HstiaDeRtia, pHsTiaCfg->HstiaDeRload, 
+            //        DeRtiaTable[pHsTiaCfg->HstiaDeRtia][pHsTiaCfg->HstiaDeRload]);
+            
+        } else {
 			tempreg = (0x1f) << 3; /* Set it to HSTIADERTIA_OPEN. This setting is illegal */
+        }
 	}
 	/* deal with HSTIA Rload */
 	tempreg |= pHsTiaCfg->HstiaDeRload;
+    printf("%s: REG_AFE_DE0RESCON=%lx\r\n", __func__, tempreg);
 
 	return ad5940_WriteReg(dev, REG_AFE_DE0RESCON, tempreg);
 }
