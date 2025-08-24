@@ -258,7 +258,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     float desired_vpp[] = {1000,};
     size_t num_volt = sizeof(desired_vpp)/sizeof(desired_vpp[0]);
 
-    uint8_t ctiacon_list[] = {0, 1, 2, 4};
+    uint8_t ctiacon_list[] = {4};
     size_t num_ctiacon = sizeof(ctiacon_list)/sizeof(ctiacon_list[0]);
 
     ImpedanceDataPoint resZ[num_seq][num_volt][num_ctiacon][num_freq];   // hold Z results 
