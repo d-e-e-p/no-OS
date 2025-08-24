@@ -194,6 +194,7 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, Impedance
 
     // is the RTIA coming from RTIA or RTIA_DE0 ?
     memcpy(&hs_loop.HsTiaCfg, &pCalCfg->HsTiaCfg, sizeof(pCalCfg->HsTiaCfg));
+   hs_loop.HsTiaCfg.HstiaCtia =  pBiaCfg->CtiaSel;
     if(pBiaCfg->HstiaDeRtia == HSTIADERTIA_OPEN) {
         // regular RTIA
         hs_loop.HsTiaCfg.HstiaDeRload = HSTIADERTIA_TODE; // short HSTIA output to DE0

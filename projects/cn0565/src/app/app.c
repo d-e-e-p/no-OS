@@ -235,7 +235,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     if (ret)
         return ret;
 
-    printf("%s: OK\r\n", __FUNCTION__);
+    printf("%s: OK\r\n", __func__);
     AD5940BiaStructInit(); /* Configure run parameters */
 
     // define switch config
@@ -245,7 +245,6 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     uint8_t seq[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
     size_t num_seq = sizeof(seq)/sizeof(seq[0]);
     setMuxSwitch(i2c, ad5940, seq[0]);
-    print_int_array("seq_list", seq, num_seq);
 
     //heap_get_usage();
 
@@ -253,21 +252,27 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
     //float freq_list[] = {400, };
     size_t num_freq = sizeof(freq_list) / sizeof(freq_list[0]);
-    print_float_array("freq_list", freq_list, num_freq);
 
     //float desired_vpp[] = {10, 20, 50, 100, 200, 500, 1000, 2000 };
     //float desired_vpp[] = {10, 15, 20, 25, 30, 35, 40};
     float desired_vpp[] = {1000,};
     size_t num_volt = sizeof(desired_vpp)/sizeof(desired_vpp[0]);
-    print_float_array("desired_vpp", desired_vpp, num_volt);
 
-    ImpedanceDataPoint resZ[num_seq][num_volt][num_freq];   // hold Z results 
+    uint8_t ctiacon_list[] = {0, 1, 2, 4};
+    size_t num_ctiacon = sizeof(ctiacon_list)/sizeof(ctiacon_list[0]);
+
+    ImpedanceDataPoint resZ[num_seq][num_volt][num_ctiacon][num_freq];   // hold Z results 
     mem_free_space();
-    LCR_Result resLCR[num_seq][num_volt];   // hold LCR results 
+    LCR_Result resLCR[num_seq][num_volt][num_ctiacon];   // hold LCR results 
     mem_free_space();
                                                  //
-    fImpCar_Type Ztia[num_volt][num_freq];
-    printf("%s : init \r\n", __FUNCTION__);
+    print_int_array("seq_list", seq, num_seq);
+    print_float_array("desired_vpp", desired_vpp, num_volt);
+    print_float_array("freq_list", freq_list, num_freq);
+    print_int_array("ctiacon_list", ctiacon_list, num_ctiacon);
+
+    fImpCar_Type Ztia[num_volt][num_freq][num_ctiacon];
+    printf("%s : init \r\n", __func__);
 
     // collect ztia info
     /*
@@ -288,43 +293,51 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
                                                         
     for (size_t i = 0; i < num_volt; i++) {
         pBiaCfg->DesiredVoltage = desired_vpp[i];
-        printf("%s: desired_vpp voltage[%d] = %f\r\n", __FUNCTION__, i, desired_vpp[i]);
-        for (size_t j = 0; j < num_freq; j++) {
-            pBiaCfg->SinFreq = freq_list[j];
-            pBiaCfg->bParamsChanged = true;
-            AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
-            Ztia[i][j] = pBiaCfg->ZtiaCalCurrValue;
-            // temp hack
-            pBiaCfg->HstiaDeRtia = HSTIADERTIA_50;
-            float RcalVal = 50;
-            fImpCar_Type ZcalVal = { RcalVal, 0.0f };
-            pBiaCfg->ZtiaCalCurrValue = ZcalVal;
-            for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
-                printf("%s:═══════════════════════ experiment %d probe  %.0f mV %.0f Hz \r\n",
-                        __FUNCTION__, switchSeqNum, desired_vpp[i], freq_list[j] );
-                setMuxSwitch(i2c, ad5940, seq[switchSeqNum]);
-                AppBiaRdutRun(ad5940, &resZ[switchSeqNum][i][j]);
+        printf("%s: desired_vpp voltage[%d] = %f\r\n", __func__, i, desired_vpp[i]);
+        for (size_t k = 0; k < num_ctiacon; k++) {
+            pBiaCfg->CtiaSel = ctiacon_list[k];
+            uint32_t tempreg = (ctiacon_list[k] << BITP_AFE_HSRTIACON_CTIACON);
+            printf("CTIA=%lu pF -> tempreg=0x%08lx\r\n", pBiaCfg->CtiaSel, tempreg);
+            for (size_t j = 0; j < num_freq; j++) {
+                printf("%s:═══════════════════════ run with %.0f mV  %.0f Hz  %d pF  \r\n",
+                            __func__, desired_vpp[i], freq_list[j], ctiacon_list[k] );
+                pBiaCfg->SinFreq = freq_list[j];
+                pBiaCfg->bParamsChanged = true;
+                AppBiaInit(ad5940, AppBuff, APPBUFF_SIZE);
+                Ztia[i][j][k] = pBiaCfg->ZtiaCalCurrValue;
+                // temp hack
+                pBiaCfg->HstiaDeRtia = HSTIADERTIA_50;
+                float RcalVal = 50;
+                fImpCar_Type ZcalVal = { RcalVal, 0.0f };
+                pBiaCfg->ZtiaCalCurrValue = ZcalVal;
+
+                // then call ad5940_WriteReg(dev, REG_AFE_HSRTIACON, tempreg | other_bits);
+                for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
+                    setMuxSwitch(i2c, ad5940, seq[switchSeqNum]);
+                    AppBiaRdutRun(ad5940, &resZ[switchSeqNum][i][k][j]);
+                }
             }
-        }
-        printf("complete init seq \r\n");
-        AppBiaCtrl(ad5940, BIACTRL_STOPNOW, 0);
+    
+            printf("complete init seq \r\n");
+            AppBiaCtrl(ad5940, BIACTRL_STOPNOW, 0);
 
-        printf("\r\n--- LCR Fitting Results ---\r\n");
+            printf("\r\n--- LCR Fitting Results ---\r\n");
 
-        for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
-            LCR_Result result = lcr_from_impedance(resZ[switchSeqNum][i], num_freq);
-            resLCR[switchSeqNum][i] = result;
-            if (!isnan(result.L)) {
-                printf("seq: %d volt=%.0f mV  L = %.3g mH  C = %.3g fF  R=%.3g   Ω err=%.2g\r\n", 
-                        switchSeqNum, desired_vpp[i], 
-                        result.L * 1e3, result.C * 1e15, result.R, result.fit_error * 1e3);
-            } else {
-                printf("seq: %d LCR Fitting failed.\r\n", switchSeqNum);
+            for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
+                LCR_Result result = lcr_from_impedance(resZ[switchSeqNum][i][k], num_freq);
+                resLCR[switchSeqNum][i][k] = result;
+                if (!isnan(result.L)) {
+                    printf("seq: %d volt=%.0f mV  L = %.3g mH  C = %.3g fF  R=%.3g Ω   err=%.2g  ctiacon=%d\r\n", 
+                            switchSeqNum, desired_vpp[i], 
+                            result.L * 1e3, result.C * 1e15, result.R, result.fit_error * 1e3, ctiacon_list[k]);
+                } else {
+                    printf("seq: %d LCR Fitting failed.\r\n", switchSeqNum);
+                }
             }
         }
     }
 
-
+    /*
     fImpCar_Type ZtiaAve[num_volt];
     dump_ztia_csv(num_seq, num_volt, num_freq, desired_vpp, freq_list, Ztia, ZtiaAve);
     dump_zdut_csv(num_seq, num_volt, num_freq, desired_vpp, freq_list, resZ);
@@ -336,6 +349,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
     // OK, now go into interactive mode
     interactive_mode();
+    */
 
     return 0;
 }

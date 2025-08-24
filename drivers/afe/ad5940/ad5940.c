@@ -1183,7 +1183,7 @@ int ad5940_HSTIACfgS(struct ad5940_dev *dev, HSTIACfg_Type *pHsTiaCfg)
 	}
 	/* deal with HSTIA Rload */
 	tempreg |= pHsTiaCfg->HstiaDeRload;
-    printf("%s: REG_AFE_DE0RESCON=%lx\r\n", __func__, tempreg);
+    //printf("%s: REG_AFE_DE0RESCON=%lx\r\n", __func__, tempreg);
 
 	return ad5940_WriteReg(dev, REG_AFE_DE0RESCON, tempreg);
 }
