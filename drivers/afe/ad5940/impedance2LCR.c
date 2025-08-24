@@ -182,14 +182,14 @@ void dump_zdut_csv(size_t switchSeqCnt,
                        const ImpedanceDataPoint resZ[switchSeqCnt][num_volt][num_freq])
 {
     printf("════════════   Zdut   ═══════════════════\r\n");
-    printf("seq, desired_vpp, freq, Ztia.R, Ztia.I\r\n");
+    printf("seq, desired_vpp, freq, Zdut.R, Zdut.I\r\n");
 
     for (size_t seq = 0; seq < switchSeqCnt; seq++) {
         for (size_t i = 0; i < num_volt; i++) {
             for (size_t j = 0; j < num_freq; j++) {
                 float zr = resZ[seq][i][j].Z.Real;
                 float zi = resZ[seq][i][j].Z.Image;
-                printf("%d, %.0f, %.0f, %0.f, %.0f\r\n",
+                printf("%-3d, %-4.0f, %-5.0f, %-10.2f, %-10.2f\r\n",
                     seq, desired_vpp[i], freq_list[j], zr, zi);
             }
         }

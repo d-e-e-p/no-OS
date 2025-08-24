@@ -249,8 +249,8 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     //heap_get_usage();
 
     // step1 : setup sequence
-    float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
-    //float freq_list[] = {400, };
+    //float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
+    float freq_list[] = {1000, 2000, 3000, 4000, 5000,  };
     size_t num_freq = sizeof(freq_list) / sizeof(freq_list[0]);
 
     //float desired_vpp[] = {10, 20, 50, 100, 200, 500, 1000, 2000 };
@@ -309,23 +309,46 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
                 AppBiaRdutRun(ad5940, &resZ[switchSeqNum][i][j]);
             }
         }
+
+        /*
+        // zero out shorted connection
+        size_t szero = 0;
+        fImpCar_Type Zzero;
+        for (size_t j = 0; j < num_freq; j++) {
+            Zzero.Real = resZ[szero][i][j].Z.Real;
+            Zzero.Image = resZ[szero][i][j].Z.Image;
+            for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
+                printf("(%f, %f) - (%f, %f) = ", 
+                        resZ[switchSeqNum][i][j].Z.Real, resZ[switchSeqNum][i][j].Z.Image,
+                        Zzero.Real, Zzero.Image);
+                resZ[switchSeqNum][i][j].Z.Real -= Zzero.Real;
+                resZ[switchSeqNum][i][j].Z.Image -= Zzero.Image;
+                printf("(%f, %f) \r\n", resZ[switchSeqNum][i][j].Z.Real, resZ[switchSeqNum][i][j].Z.Image);
+            }
+        }
+        */
     
         printf("complete init seq \r\n");
         AppBiaCtrl(ad5940, BIACTRL_STOPNOW, 0);
 
         printf("\r\n--- LCR Fitting Results ---\r\n");
 
+        printf("%-3s %-8s %-10s %-10s %-10s %-10s\r\n",
+       "Seq", "Volt(mV)", "L(mH)", "C(fF)", "R(Ω)", "Err");  // Header
+
         for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
             LCR_Result result = lcr_from_impedance(resZ[switchSeqNum][i], num_freq);
-            resLCR[switchSeqNum][i] = result;
-            if (!isnan(result.L)) {
-                printf("seq: %d volt=%.0f mV  L = %.3g mH  C = %.3g fF  R=%.3g Ω   err=%.2g  \r\n", 
-                        switchSeqNum, desired_vpp[i], 
-                        result.L * 1e3, result.C * 1e15, result.R, result.fit_error * 1e3 );
-            } else {
-                printf("seq: %d LCR Fitting failed.\r\n", switchSeqNum);
-            }
+
+                printf("%-3d %-8.0f %-10.3g %-10.3g %-10.3g %-10.2g\r\n",
+                       switchSeqNum,
+                       desired_vpp[i],
+                       result.L * 1e3,          // mH
+                       result.C * 1e15,         // fF
+                       result.R,                // Ω
+                       result.fit_error * 1e3   // mΩ
+                );
         }
+
     }
 
     fImpCar_Type ZtiaAve[num_volt];
