@@ -1,6 +1,7 @@
 
 #include "impedance2LCR.h"
 #include <stdlib.h> // For qsort
+#include <complex.h>
 
 #define MAX_ITERATIONS 5000
 #define LEARNING_RATE 1e-10
@@ -97,7 +98,7 @@ static void calculate_gradient(double L, double C, double R, const double *omega
     *grad_R = (cost_R - cost_center) / GRADIENT_STEP;
 }
 
-LCR_Result lcr_from_impedance(ImpedanceDataPoint data[], int num_points)
+LCR_Result orig_lcr_from_impedance(ImpedanceDataPoint data[], int num_points)
 {
     LCR_Result result = {NAN, NAN, NAN, NAN};
     if (num_points < 3)
@@ -159,6 +160,67 @@ LCR_Result lcr_from_impedance(ImpedanceDataPoint data[], int num_points)
     return result;
 }
 
+LCR_Result lcr_from_impedance(ImpedanceDataPoint data[], int num_points)
+{
+    LCR_Result result = {0};
+    double sumR = 0.0;
+
+    // For regression on imag part
+    double Sww = 0, Swy = 0, S11 = 0, S1y = 0, Sw1 = 0;
+    double y;  // imag(Z)
+    double w;  // angular freq = 2*pi*f
+
+    for (int i = 0; i < num_points; i++) {
+        double Re = data[i].Z.Real;
+        double Im = data[i].Z.Image;
+        w = 2.0 * M_PI * data[i].freq;
+
+        sumR += Re;
+
+        // Linear regression: Im = w*A + (-1/w)*B
+        y = Im;
+        double X1 = w;
+        double X2 = -1.0 / w;
+
+        // Accumulate normal equations
+        Sww += X1*X1;       // Σ w^2
+        Sw1 += X1*X2;       // Σ (w * -1/w)
+        S11 += X2*X2;       // Σ (1/w^2)
+        Swy += X1*y;        // Σ w*y
+        S1y += X2*y;        // Σ (1/w)*y
+    }
+
+    // Average R
+    result.R = sumR / num_points;
+
+    // Solve 2x2 linear system:
+    // [Sww  Sw1] [A] = [Swy]
+    // [Sw1  S11] [B]   [S1y]
+
+    double det = Sww*S11 - Sw1*Sw1;
+    if (fabs(det) < 1e-12) {
+        result.L = result.C = NAN;
+        return result;
+    }
+
+    double A = (Swy*S11 - S1y*Sw1) / det; // L
+    double B = (Sww*S1y - Swy*Sw1) / det; // 1/C
+
+    result.L = A;
+    result.C = (B != 0.0) ? 1.0/B : NAN;
+
+    // Compute RMS fit error
+    double err2 = 0.0;
+    for (int i = 0; i < num_points; i++) {
+        w = 2.0 * M_PI * data[i].freq;
+        double predIm = w*result.L - 1.0/(w*result.C);
+        double diff = data[i].Z.Image - predIm;
+        err2 += diff*diff;
+    }
+    result.fit_error = sqrt(err2 / num_points);
+
+    return result;
+}
 
 
 void dump_ztia_csv(size_t switchSeqCnt,
@@ -342,5 +404,77 @@ int test()
     // The learning rate and number of iterations may need tuning for different component ranges.
 
     return 0;
+}
+
+//
+// Compute model impedance
+//
+static inline fImpCar_Type Z_model(double f, double R, double L, double Cs, double Cp) {
+    double w = 2*M_PI*f;
+
+    // Series branch: R + jωL + 1/(jωCs)
+    double complex Zs = R + I*w*L + 1.0/(I*w*Cs);
+
+    // Cp branch: 1/(jωCp)
+    double complex Zcp = 1.0/(I*w*Cp);
+
+    // Parallel combination
+    double complex Zt = (Zs * Zcp) / (Zs + Zcp);
+
+    fImpCar_Type res = {creal(Zt), cimag(Zt)};
+    return res;
+}
+
+//
+// Compute RMS error for given params
+//
+static double error_function(ImpedanceDataPoint *data, int N,
+                             double R, double L, double Cs, double Cp) {
+    double err = 0.0;
+    for (int i = 0; i < N; i++) {
+        fImpCar_Type Zm = Z_model(data[i].freq, R, L, Cs, Cp);
+        double dr = Zm.Real - data[i].Z.Real;
+        double di = Zm.Imag - data[i].Z.Imag;
+        err += dr*dr + di*di;
+    }
+    return sqrt(err/N);
+}
+
+//
+// Gradient-based optimization (very simple LM-like update)
+//
+LCR_Result fit_rlc_cp(ImpedanceDataPoint *data, int N) {
+    // Initial guesses
+    double R = 300.0, L = 1e-6, Cs = 1e-9, Cp = 1e-9;
+    double lr = 0.1; // learning rate
+    double eps = 1e-6;
+
+    for (int iter=0; iter<500; iter++) {
+        double base_err = error_function(data,N,R,L,Cs,Cp);
+
+        // Numerical gradients
+        double dR  = (error_function(data,N,R+eps,L,Cs,Cp) - base_err)/eps;
+        double dL  = (error_function(data,N,R,L+eps,Cs,Cp) - base_err)/eps;
+        double dCs = (error_function(data,N,R,L,Cs+eps,Cp) - base_err)/eps;
+        double dCp = (error_function(data,N,R,L,Cs,Cp+eps) - base_err)/eps;
+
+        // Gradient descent update
+        R  -= lr*dR;
+        L  -= lr*dL;
+        Cs -= lr*dCs;
+        Cp -= lr*dCp;
+
+        if (iter % 50 == 0) {
+            printf("Iter %d: Err=%.6g R=%.3f L=%.3e Cs=%.3e Cp=%.3e\n",
+                   iter, base_err, R, L, Cs, Cp);
+        }
+
+        if (base_err < 1e-3) break; // converged
+    }
+
+    LCR_Result best;
+    best.R = R; best.L = L; best.Cs = Cs; best.Cp = Cp;
+    best.fit_error = error_function(data,N,R,L,Cs,Cp);
+    return best;
 }
 

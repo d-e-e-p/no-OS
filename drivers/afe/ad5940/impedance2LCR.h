@@ -29,7 +29,8 @@ typedef struct
 typedef struct
 {
     double L;      // Inductance in Henrys
-    double C;      // Capacitance in Farads
+    double Cs;      // Capacitance in Farads
+    double Cp;      // Capacitance in Farads
     double R;      // Resistance in Ohms
     double fit_error; // Final root mean square error of the fit
 } LCR_Result;

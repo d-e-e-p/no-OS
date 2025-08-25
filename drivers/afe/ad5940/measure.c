@@ -82,20 +82,22 @@ fImpCar_Type computeImpedanceFromFifo(AppBiaCfg_Type *pBiaCfg, uint32_t *const p
     // Step3: compute impedance
     fImpCar_Type Zdut = ad5940_ComplexDivFloat(&DftVdut, &Idut);
 
-    printf(
+    if (false) {
+      printf(
         "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
         __func__,
         DftVtia.Real, DftVtia.Image,
         Ztia.Real, Ztia.Image
-    );
+      );
 
-    printf(
+      printf(
         "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
         __func__,
         Zdut.Real, Zdut.Image,
         DftVdut.Real, DftVdut.Image,
         Idut.Real, Idut.Image
-    );
+      );
+    }
 
 
     return Zdut;
