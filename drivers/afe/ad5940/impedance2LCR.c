@@ -15,10 +15,21 @@ static int compare_freq(const void *a, const void *b);
 LCR_Result fit_result(LCR_Result res)
 {
     LCR_Result rfit = res;
-    rfit.L = res.L - 0.535;
+    rfit.L = res.L;
     rfit.C = res.C;
-    // y = 5.1291x - 463.51
-    rfit.R = 5.1291 * res.R - 463.51;
+    rfit.R = res.R;
+    return rfit;
+} 
+
+// zero out negative LCR
+LCR_Result zero_result(LCR_Result res)
+{
+    LCR_Result rfit = res;
+
+    if (rfit.L < 0)  rfit.L = 0; 
+    if (rfit.C < 0)  rfit.C = 0; 
+    if (rfit.R < 0)  rfit.R = 0; 
+
     return rfit;
 }
     
@@ -204,31 +215,31 @@ void dump_lcr_box(size_t switchSeqCnt,
 {
     printf("╔═════════════════════════════════════════╗\r\n");
     printf("║            LCR Fitting Results          ║\r\n");
-    printf("╠══╤═════════╤═════════╤═══════════╤══════╣\r\n");
-    printf("║S │     L   │    C    │    R      │  vol ║\r\n");
-    printf("║  │   (mH)  │   (µF)  │   (Ω)     │      ║\r\n");
-    printf("╠══╪═════════╪═════════╪═══════════╪══════╣\r\n");
+    printf("╠══╤═════════╤═════════╤══════════╤═══════╣\r\n");
+    printf("║S │     L   │    C    │    R     │ dutV  ║\r\n");
+    printf("║  │   (mH)  │   (µF)  │   (Ω)    │ (mV)  ║\r\n");
+    printf("╠══╪═════════╪═════════╪══════════╪═══════╣\r\n");
 
     for (size_t seq = 0; seq < switchSeqCnt; seq++) {
       for (size_t i = 0; i < num_volt; i++) {
             LCR_Result result = resLCR[seq][i];
+            LCR_Result res = zero_result(fit_result(result));
 
             if (!isnan(result.L)) {
-                LCR_Result res = fit_result(result);
-                printf("║%2d│%8.2g │%8.2g │%10.3g │%6.3g║\r\n",
+                printf("║%2d│%8.2g │%8.2g │%9.3g │%7.0f║\r\n",
                        seq, res.L * 1e3, res.C * 1e6, res.R , desired_vpp[i]);
             } else {
-                printf("║%2d│ %7.2g │ %7.2g │ %9.3g │%6.3g║\r\n",
+                printf("║%2d│ %7.2g │ %7.2g │%9.3g │%7.0f║\r\n",
                        seq, result.L, result.C, result.R, desired_vpp[i]);
             }
 
             if (i == num_volt - 1) {
-                printf("╟──┼─────────┼─────────┼───────────┼──────╢\r\n");
+                printf("╟──┼─────────┼─────────┼──────────┼───────╢\r\n");
             }
         }
     }
 
-    printf("╚══╧═════════╧═════════╧═══════════╧══════╝\r\n");
+    printf("╚══╧═════════╧═════════╧══════════╧═══════╝\r\n");
 }
 
 void dump_raw_lcr_csv(size_t switchSeqCnt,

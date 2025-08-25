@@ -165,7 +165,8 @@ Y3 -> F-    DE0
 typedef enum {
     DRIVE_AIN1_AIN1,
     DRIVE_AIN1_AIN0,
-    DRIVE_DE0_RLOAD
+    DRIVE_DE0_RLOAD,
+    DRIVE_DE0_AND_RTIA
 } DriveOption;
 
 
@@ -198,11 +199,23 @@ void define_switch_config(DriveOption option)
             pBiaCfg->Dswitch = SWD_CE0;
             pBiaCfg->Pswitch = SWP_CE0;
             pBiaCfg->Nswitch = SWN_DE0LOAD; // N6
-            pBiaCfg->Tswitch = SWT_DE0LOAD; // T10 and T6
+            pBiaCfg->Tswitch = SWT_DE0LOAD; // T10
 
             pBiaCfg->HstiaDeRload = HSTIADERLOAD_0R;
             pBiaCfg->HstiaDeRtia = HSTIADERTIA_50;
             pBiaCfg->HstiaRtiaSel = HSTIARTIA_OPEN; // +- 200mV with 200 ohm dut
+
+            break;
+
+        case DRIVE_DE0_AND_RTIA:
+            pBiaCfg->Dswitch = SWD_CE0;
+            pBiaCfg->Pswitch = SWP_CE0;
+            pBiaCfg->Nswitch = SWN_DE0LOAD; // N6
+            pBiaCfg->Tswitch = SWT_DE0LOAD | SWT_TRTIA  ; // T10 and T9
+
+            pBiaCfg->HstiaDeRload = HSTIADERLOAD_0R;
+            pBiaCfg->HstiaDeRtia = HSTIADERTIA_50;
+            pBiaCfg->HstiaRtiaSel = HSTIARTIA_200; // +- 200mV with 200 ohm dut
 
             break;
     }
@@ -214,7 +227,7 @@ void mem_free_space(void) {
     char sp;
     void *heap_end = sbrk(0);
     size_t free_bytes = (uintptr_t)&sp - (uintptr_t)heap_end;
-    printf("Free space between heap and stack = %d bytes\r\n", free_bytes);
+    printf("mem(stack-heap) = %d bytes\r\n", free_bytes);
 }
 
 
@@ -239,7 +252,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     AD5940BiaStructInit(); /* Configure run parameters */
 
     // define switch config
-    DriveOption opt = DRIVE_DE0_RLOAD;
+    DriveOption opt = DRIVE_DE0_AND_RTIA;
     define_switch_config(opt);
     
     uint8_t seq[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
@@ -249,8 +262,8 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     //heap_get_usage();
 
     // step1 : setup sequence
-    //float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
-    float freq_list[] = {1000, 2000, 3000, 4000, 5000,  };
+    float freq_list[] = {200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,};
+    //float freq_list[] = {1000, 2000, 3000, 4000, 5000,  };
     size_t num_freq = sizeof(freq_list) / sizeof(freq_list[0]);
 
     //float desired_vpp[] = {10, 20, 50, 100, 200, 500, 1000, 2000 };
@@ -299,9 +312,9 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
             Ztia[i][j] = pBiaCfg->ZtiaCalCurrValue;
             // temp hack
             pBiaCfg->HstiaDeRtia = HSTIADERTIA_50;
-            float RcalVal = 50;
-            fImpCar_Type ZcalVal = { RcalVal, 0.0f };
-            pBiaCfg->ZtiaCalCurrValue = ZcalVal;
+            float RtiaVal = 55.6752; // from meas
+            fImpCar_Type ZtiaVal = { RtiaVal, 0.0f };
+            pBiaCfg->ZtiaCalCurrValue = ZtiaVal;
 
             // then call ad5940_WriteReg(dev, REG_AFE_HSRTIACON, tempreg | other_bits);
             for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
@@ -331,6 +344,15 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
         printf("complete init seq \r\n");
         AppBiaCtrl(ad5940, BIACTRL_STOPNOW, 0);
 
+        size_t szero = 0;
+        LCR_Result res0 = lcr_from_impedance(resZ[szero][i], num_freq);
+        printf(" removing zero element: e=%-3d L:%-10.3g mH C:%-10.3g fF R:%-10.3g \r\n",
+               szero,
+               res0.L * 1e3,          // mH
+               res0.C * 1e15,         // fF
+               res0.R                 // Ω
+        );
+
         printf("\r\n--- LCR Fitting Results ---\r\n");
 
         printf("%-3s %-8s %-10s %-10s %-10s %-10s\r\n",
@@ -338,6 +360,10 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
 
         for (switchSeqNum = 0; switchSeqNum < num_seq; switchSeqNum++) {
             LCR_Result result = lcr_from_impedance(resZ[switchSeqNum][i], num_freq);
+            result.L -= res0.L;
+            result.C -= res0.C;
+            result.R -= res0.R;
+            resLCR[switchSeqNum][i] = result;
 
                 printf("%-3d %-8.0f %-10.3g %-10.3g %-10.3g %-10.2g\r\n",
                        switchSeqNum,
@@ -355,7 +381,7 @@ int app_main(struct no_os_i2c_desc *i2c, struct ad5940_init_param *ad5940_ip)
     dump_ztia_csv(num_seq, num_volt, num_freq, desired_vpp, freq_list, Ztia, ZtiaAve);
     dump_zdut_csv(num_seq, num_volt, num_freq, desired_vpp, freq_list, resZ);
     dump_raw_lcr_csv(num_seq, num_volt, ZtiaAve, desired_vpp, resLCR);
-    dump_fit_lcr_csv(num_seq, num_volt, ZtiaAve, desired_vpp, resLCR);
+    // dump_fit_lcr_csv(num_seq, num_volt, ZtiaAve, desired_vpp, resLCR);
         
     dump_lcr_box(num_seq, num_volt, ZtiaAve, desired_vpp, resLCR);
 

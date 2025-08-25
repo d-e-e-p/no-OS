@@ -134,7 +134,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 	hs_loop.HsDacCfg.HsDacGain = excit_config.HsDacGain;
 	hs_loop.HsDacCfg.HsDacUpdateRate = 7; /* Set it to highest update rate */
 
-
+    /*
     // RTIA or RTIA_DE0 ?
     if(pBiaCfg->HstiaDeRtia == HSTIADERTIA_OPEN) {
         // regular RTIA
@@ -162,6 +162,16 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
         hs_loop.HsTiaCfg.HstiaDeRtia = pBiaCfg->HstiaDeRtia;
         hs_loop.HsTiaCfg.HstiaRtiaSel = HSTIARTIA_OPEN;
     }
+    */
+        //RTIA_DE0
+        hs_loop.SWMatCfg.Dswitch = SWD_RCAL0;
+        hs_loop.SWMatCfg.Pswitch = SWP_RCAL0;
+        hs_loop.SWMatCfg.Nswitch = SWN_RCAL1 | SWN_DE0LOAD | SWN_NL; // NR1 + N6 + NL
+        hs_loop.SWMatCfg.Tswitch = SWT_RCAL1 | SWT_DE0LOAD ; //  T10 + TR1
+                                                //
+        hs_loop.HsTiaCfg.HstiaDeRload = HSTIADERLOAD_OPEN; // just for calib
+        hs_loop.HsTiaCfg.HstiaDeRtia = pBiaCfg->HstiaDeRtia;
+        hs_loop.HsTiaCfg.HstiaRtiaSel = pBiaCfg->HstiaRtiaSel;
 
 	hs_loop.WgCfg.WgType = WGTYPE_SIN;
 	hs_loop.WgCfg.GainCalEn =
@@ -276,7 +286,8 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
 
     /* Current flow & DFT convention corrections */
     Dtia.Real  =  Dtia.Real;
-    Dtia.Image = -Dtia.Image;
+    // hack for now using both Rtia and Rtia_de0 in parallel
+    //Dtia.Image = -Dtia.Image;
     Dcal.Real  = -Dcal.Real;
     Dcal.Image =  Dcal.Image;
 
@@ -301,6 +312,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
     //printf("dtia = %.2f + %.2f j\r\n", Dtia.Real, Dtia.Image);
     //printf("dcal = %.2f + %.2f j\r\n", Dcal.Real, Dcal.Image);
 
+    /*
     printf("  DEBUG Zratio (%.0f + %.0f j) = Dtia (%.0f + %.0f j) / Dcal (%.0f + %.0f j)\r\n",
            Zratio.Real, Zratio.Image,
            Dtia.Real, Dtia.Image,
@@ -310,6 +322,7 @@ int ad5940_HSRtiaCal(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, AppBiaCfg_
            ZtiaVal.Real, ZtiaVal.Image,
            Zratio.Real, Zratio.Image,
            ZcalVal.Real, ZcalVal.Image);
+    */
 
     if (pCalCfg->bPolarResult == false) {
         *((fImpCar_Type*)pResult) = ZtiaVal;

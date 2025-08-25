@@ -549,7 +549,7 @@ static int AppBiaRtiaCal(struct ad5940_dev *dev)
 
     static uint32_t const HpRtiaTable[] = {200, 1000, 5000, 10000, 20000, 40000, 80000, 160000, 0};
     uint32_t RtiaVal = HpRtiaTable[hsrtia_cal.HsTiaCfg.HstiaRtiaSel];
-	printf("AppBiaRtiaCal using HstiaRtiaSel=%lu so RtiaVal = %lu\r\n", AppBiaCfg.HstiaRtiaSel,  RtiaVal);
+	//printf("AppBiaRtiaCal using HstiaRtiaSel=%lu so RtiaVal = %lu\r\n", AppBiaCfg.HstiaRtiaSel,  RtiaVal);
 
 
 	if (AppBiaCfg.SweepCfg.SweepEn == true) {

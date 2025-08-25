@@ -6,6 +6,8 @@
 #include <string.h>
 #include <inttypes.h>
 #include <errno.h>
+#include <complex.h>
+#include <assert.h>
 #include "no_os_delay.h"
 #include "no_os_spi.h"
 #include "no_os_gpio.h"
@@ -42,7 +44,7 @@ float decode_fifo_word(uint32_t w)
 
     /* Diagnostics */
     printf("%s: seq=%u channel=0x%02X type=%X is_dft=%s fval=%.2f\r\n", 
-            __FUNCTION__, seqid, chid5, subid, is_dft ? "true" : "false", fval);
+            __func__, seqid, chid5, subid, is_dft ? "true" : "false", fval);
 
     return fval;
 }
@@ -82,14 +84,14 @@ fImpCar_Type computeImpedanceFromFifo(AppBiaCfg_Type *pBiaCfg, uint32_t *const p
 
     printf(
         "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
-        __FUNCTION__,
+        __func__,
         DftVtia.Real, DftVtia.Image,
         Ztia.Real, Ztia.Image
     );
 
     printf(
         "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
-        __FUNCTION__,
+        __func__,
         Zdut.Real, Zdut.Image,
         DftVdut.Real, DftVdut.Image,
         Idut.Real, Idut.Image
@@ -137,6 +139,114 @@ ExcitConfig compute_excit_config(float desired_vpp)
 
     return cfg;
 }
+#define EPSILON 2.0f
+// This function performs complex number division by a known denominator.
+// This function performs complex number division by a known denominator.
+#include <stdio.h>
+#include <math.h>
+
+// Function to convert fImpCar_Type to a complex.h type
+_Complex float convert_to_complex(fImpCar_Type input) {
+    return input.Real + input.Image * I;
+}
+
+fImpCar_Type convert_complex_to_fImpCar_Type(_Complex float input) {
+    fImpCar_Type output;
+    output.Real = crealf(input);
+    output.Image = cimagf(input);
+    return output;
+}
+
+
+// This function performs complex number division by value, with internal checks.
+fImpCar_Type ad5940_ComplexDivFloat_byValue(fImpCar_Type a, fImpCar_Type b)
+{
+    fImpCar_Type res;
+    
+    // --- Step 1: Denominator Calculation ---
+    float b_real_sq = b.Real * b.Real;
+    float b_imag_sq = b.Image * b.Image;
+    float temp = b_real_sq + b_imag_sq;
+
+    _Complex float complex_a = convert_to_complex(a);
+    _Complex float complex_b = convert_to_complex(b);
+    _Complex float result_complex = complex_a / complex_b;
+    fImpCar_Type out = convert_complex_to_fImpCar_Type(result_complex);
+    printf("a_complex (%.4f + %.4f j) / b_complex  (%.4f + %.4f j) = result_complex (%.4f + %.4f j)\r\n", 
+            crealf(complex_a), cimagf(complex_a),
+            crealf(complex_b), cimagf(complex_b),
+            crealf(result_complex), cimagf(result_complex));
+    printf("Result with complex.h: c (%.4f + %.4f j)\r\n", crealf(result_complex), cimagf(result_complex));
+    printf("Result with complex.h: f (%.4f + %.4f j)\r\n", out.Real, out.Image); 
+
+
+    printf("Step 1 (Denominator): b.Real^2 = %.4f, b.Image^2 = %.4f, temp = %.4f\r\n", 
+           b_real_sq, b_imag_sq, temp);
+    
+    // Check 1: Verify the squared values
+    if (fabs(b.Real - sqrt(b_real_sq)) >= EPSILON) {
+        printf("ERROR: b.Real value check failed!\r\n");
+    }
+    if (fabs(b.Image - sqrt(b_imag_sq)) >= EPSILON) {
+        printf("ERROR: b.Image value check failed!\r\n");
+    }
+
+    // --- Step 2: Numerator Real Calculation ---
+    float a_real_times_b_real = a.Real * b.Real;
+    float a_imag_times_b_imag = a.Image * b.Image;
+    float numerator_real = a_real_times_b_real + a_imag_times_b_imag;
+    
+    printf("Step 2 (Numerator Real): a.Real*b.Real = %.4f, a.Image*b.Image = %.4f, numerator_real = %.4f\r\n", 
+           a_real_times_b_real, a_imag_times_b_imag, numerator_real);
+
+    // Check 2: Verify the multiplied values
+    if (fabs(a_real_times_b_real / b.Real - a.Real) >= EPSILON) {
+        printf("ERROR: a.Real check failed!\r\n");
+    }
+    if (fabs(a_imag_times_b_imag / b.Image - a.Image) >= EPSILON) {
+        printf("ERROR: a.Image check failed!\r\n");
+    }
+
+    // --- Step 3: Numerator Imaginary Calculation ---
+    float a_imag_times_b_real = a.Image * b.Real;
+    float a_real_times_b_imag = a.Real * b.Image;
+    float numerator_imag = a_imag_times_b_real - a_real_times_b_imag;
+
+    printf("Step 3 (Numerator Imaginary): a.Imag*b.Real = %.4f, a.Real*b.Imag = %.4f, numerator_imag = %.4f\r\n", 
+           a_imag_times_b_real, a_real_times_b_imag, numerator_imag);
+    
+    // Check 3: Verify the multiplied values
+    if (fabs(a_imag_times_b_real / b.Real - a.Image) >= EPSILON) {
+        printf("ERROR: a.Image check failed!\r\n");
+    }
+    if (fabs(a_real_times_b_imag / a.Real - b.Image) >= EPSILON) {
+        printf("ERROR: b.Image check failed!\r\n");
+    }
+
+    // --- Step 4: Final Division ---
+    res.Real = numerator_real / temp;
+    res.Image = numerator_imag / temp;
+
+    printf("Step 4 (Final Result): res.Real = %.4f, res.Image = %.4f\r\n", res.Real, res.Image);
+
+    // Check 4: Verify the final result
+    if (fabs(res.Real * temp - numerator_real) >= EPSILON) {
+        printf("ERROR: Final real value check failed!\r\n");
+    }
+    if (fabs(res.Image * temp - numerator_imag) >= EPSILON) {
+        printf("ERROR: Final imaginary value check failed!\r\n");
+    }
+
+    if (fabs(res.Real - out.Real) >= EPSILON) {
+        printf("ERROR: Final real value check failed!\r\n");
+    }
+    if (fabs(res.Image - out.Image) >= EPSILON) {
+        printf("ERROR: Final imaginary value check failed!\r\n");
+    }
+    return res;
+}
+
+
 
 int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, ImpedanceDataPoint *res)
 {
@@ -152,13 +262,14 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, Impedance
     AppBiaCfg_Type *pBiaCfg;
     AppBiaGetCfg(&pBiaCfg);
 
+
 	if (pCalCfg->AdcClkFreq > (32000000 * 0.8))
 		bADCClk32MHzMode = true;
 
 	/* Calculate the excitation voltage we should use based on setting */
     ExcitConfig excit_config = compute_excit_config(pBiaCfg->DesiredVoltage);
     //printf("%s: desired_vpp=%f , expected_vpp=%f\r\n",
-    //        __FUNCTION__, excit_config.requested_vpp, excit_config.actual_vpp);
+    //        __func__, excit_config.requested_vpp, excit_config.actual_vpp);
 
 	ret = ad5940_AFECtrlS(dev, AFECTRL_ALL, false);  /* Init all to disable state */
 	if (ret < 0)
@@ -320,9 +431,9 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, Impedance
 
     /* Current flow & DFT convention corrections */
     DftVtia.Real  = -DftVtia.Real;
-    DftVtia.Image = -DftVtia.Image;
+    DftVtia.Image =  DftVtia.Image;
     DftVdut.Real  = -DftVdut.Real;
-    DftVdut.Image =  DftVdut.Image;
+    DftVdut.Image = -DftVdut.Image;
 
     /*
     fImpCar_Type Ztia = {
@@ -332,8 +443,8 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, Impedance
     */
     fImpCar_Type Ztia = pBiaCfg->ZtiaCalCurrValue;
 
-    //printf("%s: dtia = %.2f + %.2f j\r\n", __FUNCTION__, DftVtia.Real, DftVtia.Image);
-    //printf("%s: ddut = %.2f + %.2f j\r\n", __FUNCTION__, DftVdut.Real, DftVdut.Image);
+    //printf("%s: dtia = %.2f + %.2f j\r\n", __func__, DftVtia.Real, DftVtia.Image);
+    //printf("%s: ddut = %.2f + %.2f j\r\n", __func__, DftVdut.Real, DftVdut.Image);
 
     // Step2: compute current through DUT
     fImpCar_Type DftIdut = ad5940_ComplexDivFloat(&DftVtia, &Ztia);
@@ -341,17 +452,17 @@ int ad5940_MeasureDUT(struct ad5940_dev *dev, HSRTIACal_Type *pCalCfg, Impedance
     // Step3: compute impedance
     fImpCar_Type Zdut = ad5940_ComplexDivFloat(&DftVdut, &DftIdut);
 
-    if (false) {
+    if (true) {
         printf(
             "%s: D_Idut = D_Vrtia (%.0f + %.0f j) / Ztia (%.0f + %.0f j)\r\n",
-            __FUNCTION__,
+            __func__,
             DftVtia.Real, DftVtia.Image,
             Ztia.Real, Ztia.Image
         );
 
         printf(
             "%s: Zdut (%.0f + %.0f j) = D_Vdut (%.0f + %.0f j) / D_Idut (%.0f + %.0f j)\r\n",
-            __FUNCTION__,
+            __func__,
             Zdut.Real, Zdut.Image,
             DftVdut.Real, DftVdut.Image,
             DftIdut.Real, DftIdut.Image
